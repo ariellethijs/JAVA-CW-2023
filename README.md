@@ -1,1 +1,1 @@
-# JavaAssignments
+# Arielle Thijssen [cc20357]
