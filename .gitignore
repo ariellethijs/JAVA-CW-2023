@@ -1,0 +1,7 @@
+*.DS_Store
+
+/cw-db/target/
+
+/cw-db/databases/
+
+
