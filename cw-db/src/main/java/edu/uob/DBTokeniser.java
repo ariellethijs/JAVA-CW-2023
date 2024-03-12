@@ -47,8 +47,4 @@ public class DBTokeniser {
         // Finally split on the space char (since there will now ALWAYS be a space between tokens)
         return input.split(" ");
     }
-
-    public ArrayList<String> getTokens(){ // Method to return commands for tokenise testing
-        return tokens;
-    }
 }

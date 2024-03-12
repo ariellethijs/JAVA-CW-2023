@@ -18,9 +18,17 @@ public class DBServer {
     private static final char END_OF_TRANSMISSION = 4;
     private String storageFolderPath;
 
-    public static void main(String args[]) throws IOException {
+    protected DBServer server;
+
+    public static void main(String[] args) throws IOException {
         DBServer server = new DBServer();
-        server.blockingListenOn(8888);
+        //server.blockingListenOn(8888);
+
+        FileDataReader fileReader = new FileDataReader();
+        String storageFolderPath = server.getStorageFolderPath();
+        String filename = args[0];
+        System.out.println(storageFolderPath + filename);
+        fileReader.accessFile(filename, storageFolderPath);
     }
 
     /**
@@ -88,4 +96,9 @@ public class DBServer {
             }
         }
     }
+
+    public String getStorageFolderPath(){
+        return storageFolderPath;
+    }
+
 }
