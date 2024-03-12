@@ -1,12 +1,11 @@
 package edu.uob;
 
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.fail;
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.time.Duration;
+import java.util.Arrays;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ExampleDBTests {
 
@@ -100,5 +99,27 @@ public class ExampleDBTests {
         assertTrue(response.contains("[ERROR]"), "An attempt was made to access a non-existent table, however an [ERROR] tag was not returned");
         assertFalse(response.contains("[OK]"), "An attempt was made to access a non-existent table, however an [OK] tag was returned");
     }
+
+    @Test
+    public void testTokeniser(){
+        DBTokeniser tokeniser = new DBTokeniser();
+        // Tests for tokeniser
+        String command = "INSERT   INTO Employee  VALUES (1,   'John Doe', 30);  ";
+        String[] expectedTokens = { "INSERT", "INTO", "Employee", "VALUES", "(", "1", ",", "'John Doe'", ",", "30", ")", ";" };
+        String[] returnedTokens1 = tokeniser.tokeniseInput(command).toArray(new String[0]);
+        assertArrayEquals(expectedTokens, returnedTokens1);
+
+        command = "UPDATE   Employee  SET age =  35 WHERE name =   'John Doe';";
+        expectedTokens = new String[]{"UPDATE", "Employee", "SET", "age", "=", "35", "WHERE", "name", "=", "'John Doe'", ";"};
+        String[] returnedTokens2 = tokeniser.tokeniseInput(command).toArray(new String[0]);
+        assertArrayEquals(expectedTokens, returnedTokens2);
+
+        command = "CREATE TABLE Employee (id INT, name VARCHAR(50), age INT);";
+        expectedTokens = new String[]{"CREATE", "TABLE", "Employee", "(", "id", "INT", ",", "name", "VARCHAR", "(", "50", ")", ",", "age", "INT", ")", ";"};
+        String[] returnedTokens3 = tokeniser.tokeniseInput(command).toArray(new String[0]);
+        assertArrayEquals(expectedTokens, returnedTokens3);
+    }
+
+
 
 }

@@ -10,10 +10,11 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Paths;
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /** This class implements the DB server. */
 public class DBServer {
-
     private static final char END_OF_TRANSMISSION = 4;
     private String storageFolderPath;
 
@@ -42,7 +43,15 @@ public class DBServer {
     * <p>This method handles all incoming DB commands and carries out the required actions.
     */
     public String handleCommand(String command) {
-        // TODO implement your server logic here
+        DBTokeniser tokeniser = new DBTokeniser();
+        ArrayList<String> commands = tokeniser.tokeniseInput(command);
+
+//        for (String s : commands){
+//            //System.out.println(s);
+//            if (s.equals("INSERT"){
+//
+//            }
+//        }
         return "";
     }
 
