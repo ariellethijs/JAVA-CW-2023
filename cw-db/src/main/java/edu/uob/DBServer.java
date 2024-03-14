@@ -52,14 +52,12 @@ public class DBServer {
     */
     public String handleCommand(String command) {
         DBTokeniser tokeniser = new DBTokeniser();
-        ArrayList<String> commands = tokeniser.tokeniseInput(command);
+        ArrayList<String> tokens = tokeniser.tokeniseInput(command);
+        String[] commands = tokens.toArray(new String[0]);
 
-//        for (String s : commands){
-//            //System.out.println(s);
-//            if (s.equals("INSERT"){
+        DBParser parser = new DBParser(commands);
+//        parser.parseAllTokens();
 //
-//            }
-//        }
         return "";
     }
 

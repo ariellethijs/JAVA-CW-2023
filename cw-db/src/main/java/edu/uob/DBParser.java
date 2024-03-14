@@ -1,26 +1,44 @@
 package edu.uob;
-
+import java.util.Arrays;
 import java.util.ArrayList;
 
 public class DBParser {
-    private ArrayList<String> commands;
+    private String[] commands;
     private int index;
 
-    public DBParser(ArrayList<String> commandTokens){
+    public DBParser(String[] commandTokens){
         this.commands = commandTokens;
         this.index = 0;
     }
 
-    public void parseAllTokens() throws ParsingException {
-        while (index <= commands.size()){
-            if (!parseCommand()){
-                throw new ParsingException("ERROR: Invalid command format");
+    public boolean parseAllTokens() throws ParsingException {
+            try {
+                while (this.index < commands.length && !commands[this.index].equals(";")){
+                    if (!parseCommand()){
+                        throw new ParsingException("Invalid command type");
+                    }
+                    this.index++;
+                }
+
+                if (commands.length > 0 && !commands[commands.length - 1].equals(";")){
+                    throw new ParsingException("Missing semicolon at the end of the command");
+                }
+
+                if (this.index == (commands.length - 1)){
+                    System.out.println("OK: parsed successfully!");
+                    return true;
+                }
+            } catch (ParsingException pe) {
+                // Handle parsing exceptions
+                System.err.println("ERROR: " + pe.getMessage());
             }
-        }
+            System.err.println("ERROR: parsing failed!");
+            return false;
     }
 
     public boolean parseCommand() throws ParsingException {
-        switch (commands.get(index)) {
+        System.out.println("Testing command: " +commands[this.index]);
+        switch (commands[this.index]) {
             case "USE" -> {
                 return parseUse();
             }
@@ -49,65 +67,238 @@ public class DBParser {
                 return parseJoin();
             }
             default -> {
-                throw new ParsingException("ERROR: Invalid command entered");
+                throw new ParsingException("Invalid command format");
             }
         }
     }
 
     public boolean parseUse() throws ParsingException {
-        // <Use>             ::=  "USE " [DatabaseName]
+        // "USE " [DatabaseName]
+        this.index++;
+        if (parsePlainText()) { // [DatabaseName] == plainText
+            return true;
+        } else {
+            throw new ParsingException("Invalid <USE> syntax");
+        }
     }
 
     public boolean parseCreate() throws ParsingException {
+        this.index++;
         // <CreateDatabase> | <CreateTable>
-        // <CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
-        // <CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
+        if (databaseAndDatabaseName() || parseCreateTable()){
+            return true;
+        } else {
+            throw new ParsingException("Invalid <CREATE> syntax");
+        }
     }
 
+    // Checks for "DATABASE " [DatabaseName]
+    public boolean databaseAndDatabaseName() throws ParsingException {
+        // "CREATE " "DATABASE " [DatabaseName]
+        if (commands[this.index].equals("DATABASE")){
+            this.index++;
+            boolean result = parsePlainText(); // [DatabaseName] == plainText
+            this.index++;
+            return result;
+        }
+        return false;
+    }
+
+    // Checks for "TABLE " [TableName]
+    public boolean tableAndTableName() throws ParsingException {
+        if (commands[this.index].equals("TABLE")) {
+            this.index++;
+            boolean result = parsePlainText();
+            this.index++;
+            return result;
+        }
+        return false;
+    }
+
+
+    public boolean parseCreateTable() throws ParsingException {
+        // "TABLE " [TableName] | "TABLE " [TableName] "(" <AttributeList> ")"
+        if (tableAndTableName()){
+            if (commands[this.index].equals("(")){
+                boolean result = parseAttributeList();
+                this.index++;
+                if (result && commands[this.index].equals(")")){
+                    this.index++;
+                    return true; // Correct
+                } else {
+                    throw new ParsingException("No attribute list/closing bracket following Create Table command's opening bracket");
+                }
+            } else { // Attribute list is optional, all other conditions are met
+                return true;
+
+            }
+        }
+        return false;
+    }
+
+
     public boolean parseDrop() throws ParsingException {
-        //  "DROP " "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
-
-
+        this.index++;
+        //  "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
+        if (databaseAndDatabaseName() || tableAndTableName()){
+            return true;
+        } else {
+            throw new ParsingException("Incorrect <DROP> syntax");
+        }
     }
 
     public boolean parseAlter() throws ParsingException {
-        //  "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
+        this.index++;
+        //  "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
+        boolean validSyntax = false;
+        if (tableAndTableName()){
+            if (parseAlterationType()){
+                validSyntax = parsePlainText(); // [AttributeName]   ::=  [PlainText]
+            }
+        }
 
+        if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
+            throw new ParsingException("Invalid <ALTER> syntax");
+        } else {
+            return true;
+        }
     }
 
     public boolean parseInsert() throws ParsingException {
-        //  "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")"
+        this.index++;
+        // "INTO " [TableName] " VALUES" "(" <ValueList> ")"
+        boolean validSyntax = false;
+        if (commands[this.index].equals("INTO ")){
+            this.index++;
+            if (parsePlainText()){
+                this.index++;
+                if (commands[this.index].equals("VALUES")){
+                    this.index++;
+                    if (commands[this.index].equals("(")){
+                        validSyntax = parseValueList();
+                    }
+                }
+            }
+        }
 
+        if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
+            throw new ParsingException("Invalid <INSERT> syntax");
+        } else {
+            return true;
+        }
     }
 
     public boolean parseSelect() throws ParsingException {
-        //  "SELECT " <WildAttribList> " FROM " [TableName] | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+        this.index++;
+        //  <WildAttribList> " FROM " [TableName] |  <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+        if (parseFullSelect() || parseConditionedSelect()){
+            return true;
+        } else {
+            throw new ParsingException("Invalid <SELECT> syntax");
+        }
+    }
 
+    public boolean parseFullSelect() throws ParsingException {
+        // <WildAttribList> " FROM " [TableName]
+        if (parseWildAttributeList()){
+            this.index++;
+            if (commands[this.index].equals("FROM ")){
+                this.index++;
+                return parsePlainText();
+            }
+        }
+        return false;
+    }
+
+    public boolean parseConditionedSelect() throws ParsingException {
+        // <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+        if (parseFullSelect()){
+            return whereCondition();
+        }
+        return false;
+    }
+
+    public boolean whereCondition() throws ParsingException{
+        // " WHERE " <Condition>
+        if (commands[this.index].equals(" WHERE ")){
+            this.index++;
+            return parseCondition();
+        }
+        return false;
     }
 
     public boolean parseUpdate() throws ParsingException {
-        // "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>
+        this.index++;
+        // [TableName] " SET " <NameValueList> " WHERE " <Condition>
+        boolean validSyntax = false;
+        if (parsePlainText()){
+            if (commands[this.index].equals(" SET ")){
+                if (parseNameValueList()){
+                    validSyntax = whereCondition();
+                }
+            }
+        }
+
+        if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
+            throw new ParsingException("Invalid <UPDATE> syntax");
+        } else {
+            return true;
+        }
     }
 
 
     public boolean parseDelete() throws ParsingException {
-        // "DELETE " "FROM " [TableName] " WHERE " <Condition>
+        this.index++;
+        // "FROM " [TableName] " WHERE " <Condition>
+        boolean validSyntax = false;
+        if (commands[this.index].equals("FROM ")){
+            this.index++;
+            if (parsePlainText()){
+                this.index++;
+                validSyntax = whereCondition();
+            }
+        }
 
+        if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
+            throw new ParsingException("Invalid <DELETE> syntax");
+        } else {
+            return true;
+        }
     }
 
     public boolean parseJoin() throws ParsingException {
-        // "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
+        this.index++;
+        // [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
+        boolean validSyntax = false;
+        if (nameAndName()){
+            this.index++;
+            if (commands[this.index].equals(" ON ")) {
+                this.index++;
+                validSyntax = nameAndName();
+                this.index++;
+            }
+        }
+
+        if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
+            throw new ParsingException("Invalid <JOIN> syntax");
+        } else {
+            return true;
+        }
     }
 
-    public boolean parseDigit(char c){
-
-        return (c >= '0' && c <= '9');
+    public boolean nameAndName() throws ParsingException {
+        // [TableName] " AND " [TableName] " || " [AttributeName] " AND " [AttributeName]
+        if (parsePlainText()) {
+            this.index++;
+            if (commands[this.index].equals("AND ")) {
+                this.index++;
+                return parsePlainText();
+            }
+        }
+        return false;
     }
 
-    public boolean parseLetter(char c) {
-        return parseUpper(c) || parseLower(c);
-    }
-
+    public boolean parseDigit(char c){ return (c >= '0' && c <= '9'); }
 
     public boolean parseUpper(char c){
         return (c >= 'A' && c <= 'Z');
@@ -115,6 +306,23 @@ public class DBParser {
 
     public boolean parseLower(char c){
         return (c >= 'a' && c <= 'z');
+    }
+
+    public boolean parseLetter(char c) {
+        return parseUpper(c) || parseLower(c);
+    }
+
+    // [TableName]       ::=  [PlainText]
+    // [AttributeName]   ::=  [PlainText]
+    // [DatabaseName]    ::=  [PlainText]
+    public boolean parsePlainText() throws ParsingException {
+        // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
+        for (char c : commands[this.index].toCharArray()){
+            if (!(parseDigit(c) || parseLetter(c))){
+                throw new ParsingException("Invalid character in plain text.");
+            }
+        }
+        return true;
     }
 
     public boolean parseSymbol(char c){
@@ -131,24 +339,208 @@ public class DBParser {
         return (c == ' ');
     }
 
-    public boolean parseBoolean(){
-        return (commands.get(index).equals("TRUE") || commands.get(index).equals("FALSE"));
+    public boolean parseNameValueList() throws ParsingException {
+        // <NameValuePair> | <NameValuePair> "," <NameValueList>
+        if (parseNameValuePair()){
+            this.index++;
+            if (commands[this.index].equals(",")){
+                this.index++;
+                return parseNameValueList();
+            } else {
+                return true;
+            }
+        }
+        return false;
     }
 
-    public boolean parseBoolOperator(){
-        return (commands.get(index).equals("AND") || commands.get(index).equals("OR"));
-
+    public boolean parseNameValuePair() throws ParsingException {
+        // [AttributeName] "=" [Value]
+        if (parsePlainText()){
+            this.index++;
+            if (commands[this.index].equals("=")){
+                this.index++;
+                return parseValue();
+            }
+        }
+        return false;
     }
 
     public boolean parseAlterationType(){
-        return (commands.get(index).equals("ADD") || commands.get(index).equals("DROP"));
+        //  "ADD" | "DROP"
+        return (commands[this.index].equals("ADD") || commands[this.index].equals("DROP"));
     }
 
-    public boolean parseComparator() {
+    public boolean parseValueList() throws ParsingException {
+        // [Value] | [Value] "," <ValueList>
+        if (parseValue()){
+            this.index++;
+            if (commands[this.index].equals(",")){
+                return parseValueList();
+            } else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean parseDigitSequence(){
+        // [Digit] | [Digit] [DigitSequence]
+        for (char c : commands[this.index].toCharArray()){
+            if (!(parseDigit(c))){
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean parseIntegerLiteral(){
+        // [DigitSequence] | "-" [DigitSequence] | "+" [DigitSequence]
+        if (plusOrMinus()){ this.index++; }
+        return parseDigitSequence();
+    }
+
+    public boolean parseFloatLiteral(){
+        // [DigitSequence] "." [DigitSequence] | "-" [DigitSequence] "." [DigitSequence] | "+" [DigitSequence] "." [DigitSequence]
+        if (plusOrMinus()){ this.index++; }
+        if (parseDigitSequence()){
+            this.index++;
+            if (commands[this.index].equals(".")){
+                return parseDigitSequence();
+            }
+        }
+        return false;
+    }
+
+    public boolean plusOrMinus(){
+        return (commands[this.index].equals("-") || commands[this.index].equals("+"));
+    }
+
+
+    public boolean parseBooleanLiteral(){
+        return (commands[this.index].equals("TRUE") || commands[this.index].equals("FALSE"));
+    }
+
+    public boolean parseCharLiteral(char c){
+        return (parseSpace(c) || parseLetter(c) || parseSymbol(c) || parseDigit(c));
+    }
+
+    public boolean parseStringLiteral(){
+        // "" | [CharLiteral] | [StringLiteral] [CharLiteral]
+        if (commands[this.index].isEmpty()){
+            this.index++;
+            return true;
+        } else {
+            for (char c : commands[this.index].toCharArray()) {
+                if (!(parseCharLiteral(c))){
+                    return false;
+                }
+            }
+            this.index++;
+            return true;
+        }
+    }
+
+    public boolean parseValue() throws ParsingException {
+        // "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
+        if (commands[this.index].equals("'")){
+            this.index++;
+            boolean result = parseStringLiteral();
+            this.index++;
+            return (result && commands[this.index].equals("'"));
+        } else if (parseBooleanLiteral() || parseFloatLiteral() || parseIntegerLiteral() || commands[this.index].equals("NULL")){
+            return true;
+        } else {
+            throw new ParsingException("Invalid [VALUE] format");
+        }
+    }
+
+    public boolean parseWildAttributeList() throws ParsingException {
+        // <AttributeList> | "*"
+        return (parseAttributeList() || commands[this.index].equals("*"));
+    }
+
+    public boolean parseAttributeList() throws ParsingException{
+        // [AttributeName] | [AttributeName] "," <AttributeList>
+        if (parsePlainText()){
+            this.index++;
+            if (commands[this.index].equals(",")){
+                return parseAttributeList();
+            } else {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean parseCondition() throws ParsingException {
+        // "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> |
+        // "(" [AttributeName] <Comparator> [Value] ")" |  [AttributeName] <Comparator> [Value]
+        boolean bracketNeedsMatching = false;
+        if (commands[this.index].equals("(")){ // If condition opens w/bracket skip it and mark the condition as needing closing bracket
+            this.index++;
+            bracketNeedsMatching = true;
+        }
+
+        if (nestedCondition()){
+            this.index++;
+            if (parseBoolOperator()){
+                this.index++;
+                if (nestedCondition()){
+                    this.index++;
+                    // Either needs a closing bracket and has one || doesn't need one and doesn't have one
+                    if ((bracketNeedsMatching && commands[this.index].equals(")")) || (!bracketNeedsMatching && !commands[this.index].equals(")"))){
+                        return true;
+                    } else {
+                        throw new ParsingException("Condition has incorrect bracketing format");
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean nestedCondition() throws ParsingException {
+        return (bracketedCondition() || unbracketedCondition());
+    }
+
+    public boolean bracketedCondition() throws ParsingException {
+        // "(" [AttributeName] <Comparator> [Value] ")"
+        if (commands[this.index].equals("(")){
+            this.index++;
+            if (unbracketedCondition()){
+                return (commands[this.index].equals(")"));
+            }
+        }
+        return false;
+    }
+
+    public boolean unbracketedCondition() throws ParsingException {
+        // [AttributeName] <Comparator> [Value]
+        if (parsePlainText()){ // Attribute names just require plain text
+            this.index++;
+            if (parseComparator()){ // Check followed by comparator
+                this.index++;
+                if (parseValue()){ // Check followed by value
+                    this.index++;
+                    return true; // Only if correct sequence met
+                }
+            }
+        }
+        return false;
+    }
+
+    public boolean parseBoolOperator(){
+        // "AND" || "OR"
+        return (commands[this.index].equals("AND") || commands[this.index].equals("OR"));
+    }
+
+
+    public boolean parseComparator(){
+        // Check if comparator is from the valid set
         String[] comparators = {"==", ">", "<", ">=", "<=", "!=", "LIKE"};
 
         for (String x : comparators) {
-            if (commands.get(index).equals(x)) {
+            if (commands[this.index].equals(x)){
                 return true;
             }
         }

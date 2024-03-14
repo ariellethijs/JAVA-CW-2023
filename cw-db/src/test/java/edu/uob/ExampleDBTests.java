@@ -114,11 +114,69 @@ public class ExampleDBTests {
         String[] returnedTokens2 = tokeniser.tokeniseInput(command).toArray(new String[0]);
         assertArrayEquals(expectedTokens, returnedTokens2);
 
-        command = "CREATE TABLE Employee (id INT, name VARCHAR(50), age INT);";
-        expectedTokens = new String[]{"CREATE", "TABLE", "Employee", "(", "id", "INT", ",", "name", "VARCHAR", "(", "50", ")", ",", "age", "INT", ")", ";"};
+        command = "CREATE TABLE Employee (id , name, age);";
+        expectedTokens = new String[]{"CREATE", "TABLE", "Employee", "(", "id", ",", "name", ",", "age",")", ";"};
         String[] returnedTokens3 = tokeniser.tokeniseInput(command).toArray(new String[0]);
         assertArrayEquals(expectedTokens, returnedTokens3);
     }
+
+    @Test
+    public void testParser(){
+        assertTrue(testUseParse()); // && testCreateParse() && testDropParse() && testAlterParse() && testInsertParse() &&
+                // testSelectParse() && testUpdateParse() && testDeleteParse() && testJoinParse());
+    }
+
+    public boolean testUseParse() {
+        boolean result = false;
+        String validName = generateRandomName();
+        String invalidName = generateRandomName() + "!&£*";
+
+        String[] testValidCommand = new String[]{"USE", validName, ";"};
+        DBParser parser1 = new DBParser(testValidCommand);
+
+        String[] testInvalidSpacing = new String[]{"US E", validName, ";"};
+        DBParser parser2 = new DBParser(testInvalidSpacing);
+
+        String[] testInvalidName = new String[]{"USE", invalidName, ";"};
+        DBParser parser3 = new DBParser(testInvalidName);
+
+        String[] testNoSemiColon = new String[]{"USE", validName};
+        DBParser parser4 = new DBParser(testNoSemiColon);
+
+        try {
+            result = (parser1.parseAllTokens() && !parser2.parseAllTokens() && !parser3.parseAllTokens() && !parser4.parseAllTokens());
+        } catch (ParsingException pe) {
+            // Handle parsing exceptions
+            System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+    }
+//    public boolean testCreateParse(){
+//
+//    }
+//    public boolean testDropParse(){
+//
+//    }
+//    public boolean testAlterParse(){
+//
+//    }
+//    public boolean testInsertParse(){
+//
+//    }
+//
+//    public boolean testSelectParse(){
+//
+//    }
+//    public boolean testUpdateParse(){
+//
+//    }
+//    public boolean testDeleteParse(){
+//
+//    }
+//    public boolean testJoinParse(){
+//
+//    }
+
 
 
 
