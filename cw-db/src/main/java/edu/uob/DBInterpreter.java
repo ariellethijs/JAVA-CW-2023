@@ -62,6 +62,18 @@ public class DBInterpreter {
 
     }
     public void executeCreate() throws IOException {
+        // <Create>          ::=  <CreateDatabase> | <CreateTable>
+        //<CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
+        //<CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
+        this.index++;
+        if (commands[this.index].equals("DATABASE")){
+            this.index++;
+            if (!currentSession.dbExists(commands[this.index])){
+                currentSession.createDatabase(commands[this.index]);
+            } else {
+                throw new IOException("A database with that name already exists");
+            }
+        }
 
     }
 

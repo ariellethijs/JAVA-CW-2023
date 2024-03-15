@@ -17,8 +17,10 @@ public class Database {
         return this.name;
     }
 
-    public void addTable(Table newTable){
-        allTables.add(newTable);
+    public Table createTable(String tableName, DBSession currentSession){
+        Table newTable = new Table(tableName, currentSession, this);
+        allTables.add(newTable); // Logic for file creation here?
+        return newTable;
     }
 
     public Table getTableByName(String name){

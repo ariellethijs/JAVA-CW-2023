@@ -429,7 +429,6 @@ public class DBParser {
         // [DigitSequence] "." [DigitSequence] | "-" [DigitSequence] "." [DigitSequence] | "+" [DigitSequence] "." [DigitSequence]
         if (plusOrMinus()){ this.index++; }
         if (parseDigitSequence()){
-            this.index++;
             if (commands[this.index].equals(".")){
                 return parseDigitSequence();
             }
@@ -570,6 +569,24 @@ public class DBParser {
             }
         }
         return false;
+    }
+
+    public DataType findDataTypeOfValue(){
+        DataType valueDataType = DataType.UNDEFINED;
+
+        if (parseBooleanLiteral()) {
+            valueDataType = DataType.BOOLEAN;
+        }
+        if (parseFloatLiteral()){
+            valueDataType = DataType.FLOAT;
+        }
+        if (parseIntegerLiteral()){
+            valueDataType = DataType.INTEGER;
+        }
+        if (parseStringLiteral()){
+            valueDataType = DataType.STRING;
+        }
+        return valueDataType;
     }
 
 

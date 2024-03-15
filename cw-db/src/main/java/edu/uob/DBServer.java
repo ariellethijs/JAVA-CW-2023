@@ -16,17 +16,16 @@ public class DBServer {
     private static final char END_OF_TRANSMISSION = 4;
     private String storageFolderPath;
 
-    protected DBServer server;
+    private DBSession currentSession;
 
 
     public static void main(String[] args) throws IOException {
         DBServer server = new DBServer();
         server.blockingListenOn(8888);
 
-//        FileDataReader fileReader = new FileDataReader();
+
 //        String storageFolderPath = server.getStorageFolderPath();
-//        String filename = args[0];
-//        fileReader.accessFile(filename, storageFolderPath);
+//
     }
 
     /**
@@ -49,12 +48,17 @@ public class DBServer {
     * <p>This method handles all incoming DB commands and carries out the required actions.
     */
     public String handleCommand(String command) {
+        try {
+            DBSession currentSession = new DBSession(getStorageFolderPath());
+        } catch (IOException fileException){
+            return ("[ERROR] " + fileException.getMessage());
+        }
+
         DBTokeniser tokeniser = new DBTokeniser();
         ArrayList<String> tokens = tokeniser.tokeniseInput(command);
         String[] commands = tokens.toArray(new String[0]);
 
         DBParser parser = new DBParser(commands);
-        DBSession currentSession = new DBSession();
         DBInterpreter interpreter = new DBInterpreter(commands, currentSession);
 
         try {
@@ -102,6 +106,14 @@ public class DBServer {
                 writer.flush();
             }
         }
+    }
+
+    public DBSession getCurrentSession(){
+        return currentSession;
+    }
+
+    public String getStorageFolderPath(){
+        return storageFolderPath;
     }
 
 }
