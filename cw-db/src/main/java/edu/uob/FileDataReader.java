@@ -9,11 +9,7 @@ public class FileDataReader {
 
     public void accessFile(String filename, String storageFolderPath){
         String filepath = storageFolderPath + File.separator + filename;
-        readPrintData(filepath);
-    }
 
-    public void readPrintData(String filepath){
-        // Try to open and read from file
         try (BufferedReader reader = new BufferedReader(new FileReader(filepath))){
             String currentLine;
             while ((currentLine = reader.readLine()) != null) {

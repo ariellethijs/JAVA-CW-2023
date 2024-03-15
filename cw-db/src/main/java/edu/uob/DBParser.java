@@ -1,40 +1,45 @@
 package edu.uob;
-import java.util.Arrays;
 import java.util.ArrayList;
+import java.io.IOException;
 
 public class DBParser {
-    private String[] commands;
+    private final String[] commands;
     private int index;
+
+    public ArrayList<Integer> validCommandStartingIndexes;
 
     public DBParser(String[] commandTokens){
         this.commands = commandTokens;
         this.index = 0;
+        this.validCommandStartingIndexes = new ArrayList<>();
     }
 
-    public boolean parseAllTokens() throws ParsingException {
+    public String parseAllTokens() throws IOException {
             try {
                 while (this.index < commands.length && !commands[this.index].equals(";")){
                     if (!parseCommand()){
-                        throw new ParsingException("Invalid command type");
+                        throw new IOException("Invalid command type");
                     }
                 }
 
                 if (commands.length > 0 && !commands[commands.length - 1].equals(";")){
-                    throw new ParsingException("Missing semicolon at the end of the command");
+                    throw new IOException("Missing semicolon at the end of the command");
                 }
 
                 if (this.index == (commands.length - 1)){
-                    System.out.println("OK: parsed successfully!");
-                    return true;
+                    return ("[OK]");
                 }
-            } catch (ParsingException pe) {
-                // Handle parsing exceptions
-                System.err.println("ERROR: " + pe.getMessage());
+            } catch (IOException e) {
+                return e.getMessage();
             }
-            return false;
+            return "";
     }
 
-    public boolean parseCommand() throws ParsingException {
+    public ArrayList<Integer> getValidCommandStartingIndexes() {
+        return validCommandStartingIndexes;
+    }
+
+    public boolean parseCommand() throws IOException {
         System.out.println("Testing command: " +commands[this.index]);
         switch (commands[this.index]) {
             case "USE" -> {
@@ -70,30 +75,31 @@ public class DBParser {
         }
     }
 
-    public boolean parseUse() throws ParsingException {
+    public boolean parseUse() throws IOException {
         // "USE " [DatabaseName]
+        int commandStartIndex = this.index;
         this.index++;
         if (parsePlainText()) { // [DatabaseName] == plainText
             this.index++;
             return true;
         } else {
-            throw new ParsingException("Invalid <USE> syntax");
+            throw new IOException("Invalid <USE> syntax");
         }
     }
 
-    public boolean parseCreate() throws ParsingException {
+    public boolean parseCreate() throws IOException {
         this.index++;
         // <CreateDatabase> | <CreateTable>
         if (databaseAndDatabaseName() || parseCreateTable()){
             this.index++;
             return true;
         } else {
-            throw new ParsingException("Invalid <CREATE> syntax");
+            throw new IOException("Invalid <CREATE> syntax");
         }
     }
 
     // Checks for "DATABASE " [DatabaseName]
-    public boolean databaseAndDatabaseName() throws ParsingException {
+    public boolean databaseAndDatabaseName() throws IOException {
         //  "DATABASE " [DatabaseName]
         if (commands[this.index].equals("DATABASE")){
             this.index++;
@@ -103,7 +109,7 @@ public class DBParser {
     }
 
     // Checks for "TABLE " [TableName]
-    public boolean tableAndTableName() throws ParsingException {
+    public boolean tableAndTableName() throws IOException {
         if (commands[this.index].equals("TABLE")) {
             this.index++;
             return parsePlainText();
@@ -112,7 +118,7 @@ public class DBParser {
     }
 
 
-    public boolean parseCreateTable() throws ParsingException {
+    public boolean parseCreateTable() throws IOException {
         // "TABLE " [TableName] | "TABLE " [TableName] "(" <AttributeList> ")"
         if (tableAndTableName()){
             int nextIndex = this.index + 1;
@@ -123,7 +129,7 @@ public class DBParser {
                 if (result && commands[this.index].equals(")")) {
                     return true;
                 } else {
-                    throw new ParsingException("Opening bracket in <CreateTable>  is not followed by an attribute list and/or closing bracket");
+                    throw new IOException("Opening bracket in <CreateTable>  is not followed by an attribute list and/or closing bracket");
                 }
             } else {
                 return true; // Return true for "TABLE" [TableName] w/o attribute list
@@ -133,45 +139,53 @@ public class DBParser {
     }
 
 
-    public boolean parseDrop() throws ParsingException {
+    public boolean parseDrop() throws IOException {
         this.index++;
         //  "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
         if (databaseAndDatabaseName() || tableAndTableName()){
             this.index++;
             return true;
         } else {
-            throw new ParsingException("Invalid <DROP> syntax");
+            throw new IOException("Invalid <DROP> syntax");
         }
     }
 
-    public boolean parseAlter() throws ParsingException {
+    public boolean parseAlter() throws IOException {
         this.index++;
         //  "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
         boolean validSyntax = false;
         if (tableAndTableName()){
+            this.index++;
             if (parseAlterationType()){
+                this.index++;
                 validSyntax = parsePlainText(); // [AttributeName]   ::=  [PlainText]
             }
         }
 
         if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
-            throw new ParsingException("Invalid <ALTER> syntax");
+            throw new IOException("Invalid <ALTER> syntax");
         } else {
+            this.index++;
             return true;
         }
     }
 
-    public boolean parseInsert() throws ParsingException {
+    public boolean parseInsert() throws IOException {
         this.index++;
         // "INTO " [TableName] " VALUES" "(" <ValueList> ")"
         boolean validSyntax = false;
-        if (commands[this.index].equals("INTO ")){
+        System.out.println("Checking: " +commands[this.index]);
+        if (commands[this.index].equals("INTO")){
             this.index++;
+            System.out.println("Checking: " +commands[this.index]);
             if (parsePlainText()){
                 this.index++;
+                System.out.println("Checking: " +commands[this.index]);
                 if (commands[this.index].equals("VALUES")){
                     this.index++;
+                    System.out.println("Checking: " +commands[this.index]);
                     if (commands[this.index].equals("(")){
+                        this.index++;
                         validSyntax = parseValueList();
                     }
                 }
@@ -179,23 +193,24 @@ public class DBParser {
         }
 
         if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
-            throw new ParsingException("Invalid <INSERT> syntax");
+            throw new IOException("Invalid <INSERT> syntax");
         } else {
+            this.index++;
             return true;
         }
     }
 
-    public boolean parseSelect() throws ParsingException {
+    public boolean parseSelect() throws IOException {
         this.index++;
         //  <WildAttribList> " FROM " [TableName] |  <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
         if (parseFullSelect() || parseConditionedSelect()){
             return true;
         } else {
-            throw new ParsingException("Invalid <SELECT> syntax");
+            throw new IOException("Invalid <SELECT> syntax");
         }
     }
 
-    public boolean parseFullSelect() throws ParsingException {
+    public boolean parseFullSelect() throws IOException {
         // <WildAttribList> " FROM " [TableName]
         if (parseWildAttributeList()){
             this.index++;
@@ -207,7 +222,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean parseConditionedSelect() throws ParsingException {
+    public boolean parseConditionedSelect() throws IOException {
         // <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
         if (parseFullSelect()){
             return whereCondition();
@@ -215,7 +230,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean whereCondition() throws ParsingException{
+    public boolean whereCondition() throws IOException{
         // " WHERE " <Condition>
         if (commands[this.index].equals(" WHERE ")){
             this.index++;
@@ -224,7 +239,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean parseUpdate() throws ParsingException {
+    public boolean parseUpdate() throws IOException {
         this.index++;
         // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         boolean validSyntax = false;
@@ -237,14 +252,14 @@ public class DBParser {
         }
 
         if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
-            throw new ParsingException("Invalid <UPDATE> syntax");
+            throw new IOException("Invalid <UPDATE> syntax");
         } else {
             return true;
         }
     }
 
 
-    public boolean parseDelete() throws ParsingException {
+    public boolean parseDelete() throws IOException {
         this.index++;
         // "FROM " [TableName] " WHERE " <Condition>
         boolean validSyntax = false;
@@ -257,13 +272,13 @@ public class DBParser {
         }
 
         if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
-            throw new ParsingException("Invalid <DELETE> syntax");
+            throw new IOException("Invalid <DELETE> syntax");
         } else {
             return true;
         }
     }
 
-    public boolean parseJoin() throws ParsingException {
+    public boolean parseJoin() throws IOException {
         this.index++;
         // [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
         boolean validSyntax = false;
@@ -277,13 +292,13 @@ public class DBParser {
         }
 
         if (!validSyntax){ // Necessary to catch failure at any stage of the nested IF conditions
-            throw new ParsingException("Invalid <JOIN> syntax");
+            throw new IOException("Invalid <JOIN> syntax");
         } else {
             return true;
         }
     }
 
-    public boolean nameAndName() throws ParsingException {
+    public boolean nameAndName() throws IOException {
         // [TableName] " AND " [TableName] " || " [AttributeName] " AND " [AttributeName]
         if (parsePlainText()) {
             this.index++;
@@ -312,7 +327,7 @@ public class DBParser {
     // [TableName]       ::=  [PlainText]
     // [AttributeName]   ::=  [PlainText]
     // [DatabaseName]    ::=  [PlainText]
-    public boolean parsePlainText() throws ParsingException {
+    public boolean parsePlainText() {
         // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
         for (char c : commands[this.index].toCharArray()){
             if (!(parseDigit(c) || parseLetter(c))){
@@ -336,7 +351,7 @@ public class DBParser {
         return (c == ' ');
     }
 
-    public boolean parseNameValueList() throws ParsingException {
+    public boolean parseNameValueList() throws IOException {
         // <NameValuePair> | <NameValuePair> "," <NameValueList>
         if (parseNameValuePair()){
             this.index++;
@@ -350,7 +365,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean parseNameValuePair() throws ParsingException {
+    public boolean parseNameValuePair() throws IOException {
         // [AttributeName] "=" [Value]
         if (parsePlainText()){
             this.index++;
@@ -367,15 +382,27 @@ public class DBParser {
         return (commands[this.index].equals("ADD") || commands[this.index].equals("DROP"));
     }
 
-    public boolean parseValueList() throws ParsingException {
+    boolean containsAtLeastOneValue = false;
+
+    public boolean parseValueList() throws IOException {
         // [Value] | [Value] "," <ValueList>
+        System.out.println("Checking: " +commands[this.index]);
+
+        if (containsAtLeastOneValue && commands[this.index].equals(")")){
+            return true;
+        }
+
         if (parseValue()){
-            this.index++;
-            if (commands[this.index].equals(",")){
-                return parseValueList();
+            containsAtLeastOneValue = true;
+            int nextIndex = this.index+1;
+            System.out.println("Checking: " +commands[nextIndex]);
+            // If at least one value and closing brace
+            if (commands[nextIndex].equals(",")){ // If more values to parse
+                this.index = nextIndex+1;
             } else {
-                return true;
+                this.index++;
             }
+            return parseValueList();
         }
         return false;
     }
@@ -383,10 +410,12 @@ public class DBParser {
     public boolean parseDigitSequence(){
         // [Digit] | [Digit] [DigitSequence]
         for (char c : commands[this.index].toCharArray()){
+            System.out.println("Checking digit " +c + " in " +commands[this.index]);
             if (!(parseDigit(c))){
                 return false;
             }
         }
+        System.out.println("returning true from digit sequence for " +commands[this.index]);
         return true;
     }
 
@@ -426,37 +455,35 @@ public class DBParser {
         if (commands[this.index].isEmpty()){
             this.index++;
             return true;
-        } else {
-            for (char c : commands[this.index].toCharArray()) {
-                if (!(parseCharLiteral(c))){
-                    return false;
-                }
+        } else if (commands[this.index].length() >= 2 && commands[this.index].charAt(0) == '\''
+                && commands[this.index].charAt(commands[this.index].length() - 1) == '\''){
+            // If at least 2 chars long and starts and end w/'
+            for (char c : commands[this.index].substring(1, commands[this.index].length() - 1).toCharArray()){
+                // Create and parse substring of the enclosed string
+                if (!parseCharLiteral(c)) {
+                return false;
             }
-            this.index++;
-            return true;
         }
-    }
-
-    public boolean parseValue() throws ParsingException {
-        // "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
-        if (commands[this.index].equals("'")){
-            this.index++;
-            boolean result = parseStringLiteral();
-            this.index++;
-            return (result && commands[this.index].equals("'"));
-        } else if (parseBooleanLiteral() || parseFloatLiteral() || parseIntegerLiteral() || commands[this.index].equals("NULL")){
-            return true;
+        this.index++;
+        return true;
         } else {
-            throw new ParsingException("Invalid [VALUE] format");
+            return false;
         }
     }
 
-    public boolean parseWildAttributeList() throws ParsingException {
+    public boolean parseValue() {
+        // "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
+        System.out.println("Checking for Value: " +commands[this.index]);
+        return (parseStringLiteral() || parseBooleanLiteral() || parseFloatLiteral() || parseIntegerLiteral() ||
+                commands[this.index].equals("NULL"));
+    }
+
+    public boolean parseWildAttributeList() throws IOException {
         // <AttributeList> | "*"
         return (parseAttributeList() || commands[this.index].equals("*"));
     }
 
-    public boolean parseAttributeList() throws ParsingException{
+    public boolean parseAttributeList() throws IOException{
         // [AttributeName] | [AttributeName] "," <AttributeList>
         if (parsePlainText()){
             int nextIndex = this.index+1; // Look ahead to see if list continues
@@ -470,7 +497,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean parseCondition() throws ParsingException {
+    public boolean parseCondition() throws IOException {
         // "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> |
         // "(" [AttributeName] <Comparator> [Value] ")" |  [AttributeName] <Comparator> [Value]
         boolean bracketNeedsMatching = false;
@@ -489,7 +516,7 @@ public class DBParser {
                     if ((bracketNeedsMatching && commands[this.index].equals(")")) || (!bracketNeedsMatching && !commands[this.index].equals(")"))){
                         return true;
                     } else {
-                        throw new ParsingException("Condition has incorrect bracketing format");
+                        throw new IOException("Condition has incorrect bracketing format");
                     }
                 }
             }
@@ -497,11 +524,11 @@ public class DBParser {
         return false;
     }
 
-    public boolean nestedCondition() throws ParsingException {
+    public boolean nestedCondition() throws IOException {
         return (bracketedCondition() || unbracketedCondition());
     }
 
-    public boolean bracketedCondition() throws ParsingException {
+    public boolean bracketedCondition() throws IOException {
         // "(" [AttributeName] <Comparator> [Value] ")"
         if (commands[this.index].equals("(")){
             this.index++;
@@ -512,7 +539,7 @@ public class DBParser {
         return false;
     }
 
-    public boolean unbracketedCondition() throws ParsingException {
+    public boolean unbracketedCondition() throws IOException {
         // [AttributeName] <Comparator> [Value]
         if (parsePlainText()){ // Attribute names just require plain text
             this.index++;

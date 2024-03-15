@@ -11,24 +11,22 @@ import java.net.Socket;
 import java.nio.file.Paths;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 
-/** This class implements the DB server. */
 public class DBServer {
     private static final char END_OF_TRANSMISSION = 4;
     private String storageFolderPath;
 
     protected DBServer server;
 
+
     public static void main(String[] args) throws IOException {
         DBServer server = new DBServer();
-        //server.blockingListenOn(8888);
+        server.blockingListenOn(8888);
 
-        FileDataReader fileReader = new FileDataReader();
-        String storageFolderPath = server.getStorageFolderPath();
-        String filename = args[0];
-        System.out.println(storageFolderPath + filename);
-        fileReader.accessFile(filename, storageFolderPath);
+//        FileDataReader fileReader = new FileDataReader();
+//        String storageFolderPath = server.getStorageFolderPath();
+//        String filename = args[0];
+//        fileReader.accessFile(filename, storageFolderPath);
     }
 
     /**
@@ -56,9 +54,20 @@ public class DBServer {
         String[] commands = tokens.toArray(new String[0]);
 
         DBParser parser = new DBParser(commands);
-//        parser.parseAllTokens();
-//
-        return "";
+        DBSession currentSession = new DBSession();
+        DBInterpreter interpreter = new DBInterpreter(commands, currentSession);
+
+        try {
+            parser.parseAllTokens();
+            ArrayList<Integer> validCommandsStartIndexes = parser.getValidCommandStartingIndexes();
+
+            for (Integer startIndex : validCommandsStartIndexes){
+                 interpreter.interpretCommand(startIndex);
+            }
+        } catch (IOException e) {
+               return ("[ERROR] " + e.getMessage());
+        }
+        return "[OK]";
     }
 
     //  === Methods below handle networking aspects of the project - you will not need to change these ! ===
@@ -93,10 +102,6 @@ public class DBServer {
                 writer.flush();
             }
         }
-    }
-
-    public String getStorageFolderPath(){
-        return storageFolderPath;
     }
 
 }

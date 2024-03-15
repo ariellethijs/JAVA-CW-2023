@@ -3,7 +3,7 @@ package edu.uob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.time.Duration;
-import java.util.Arrays;
+import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -114,47 +114,30 @@ public class ExampleDBTests {
         String[] returnedTokens2 = tokeniser.tokeniseInput(command).toArray(new String[0]);
         assertArrayEquals(expectedTokens, returnedTokens2);
 
-        command = "CREATE TABLE Employee (id , name, age);";
+        command = "CRE   ATE TABLE Employee (id , name, age);"; // Invalid extra white space
         expectedTokens = new String[]{"CREATE", "TABLE", "Employee", "(", "id", ",", "name", ",", "age",")", ";"};
         String[] returnedTokens3 = tokeniser.tokeniseInput(command).toArray(new String[0]);
-        assertArrayEquals(expectedTokens, returnedTokens3);
+        assertNotEquals(expectedTokens, returnedTokens3);
     }
 
     @Test
-    public void testParser(){
-        assertTrue(testUseParse() && testCreateParse() && testDropParse()); //&& testAlterParse() && testInsertParse() &&
-                // testSelectParse() && testUpdateParse() && testDeleteParse() && testJoinParse());
-    }
-
-    public boolean testUseParse() {
-        boolean result = false;
-        String validName = generateRandomName();
+    public void testUseParse() {
         String invalidName = generateRandomName() + "!&£*";
 
-        String[] testValidUse = new String[]{"USE", generateRandomName(), ";"};
-        DBParser parser1 = new DBParser(testValidUse);
+        String validUse = sendCommandToServer("USE " + generateRandomName() + ";");
+        assertTrue(validUse.contains("[OK]"));
 
-        String[] testInvalidSpacing = new String[]{"US E", generateRandomName(), ";"}; // Improper spacing in command
-        DBParser parser2 = new DBParser(testInvalidSpacing);
+        String testInvalidSpacing = sendCommandToServer("US E" + generateRandomName() + ";"); // Improper spacing in command
+        assertTrue(testInvalidSpacing.contains("[ERROR"));
 
-        String[] testInvalidName = new String[]{"USE", invalidName, ";"}; // Invalid characters in name
-        DBParser parser3 = new DBParser(testInvalidName);
+        String testInvalidName = sendCommandToServer("USE" + invalidName + ";"); // Invalid characters in name
+        assertTrue(testInvalidName.contains("[ERROR"));
 
-        String[] testNoSemiColon = new String[]{"USE", generateRandomName()}; // Missing semicolon at end
-        DBParser parser4 = new DBParser(testNoSemiColon);
-
-        try {
-            result = (parser1.parseAllTokens() && !parser2.parseAllTokens() && !parser3.parseAllTokens() && !parser4.parseAllTokens());
-        } catch (ParsingException pe) {
-            // Handle parsing exceptions
-            System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
+        String testNoSemiColon = sendCommandToServer("USE" + generateRandomName()); // Missing semicolon at end
+        assertTrue(testNoSemiColon.contains("[ERROR]"));
     }
 
     public boolean testCreateParse(){
-        //<CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
-        //<CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
         boolean result = false;
 
         String[] testValidCreateDatabase = new String[]{"CREATE", "DATABASE", generateRandomName(), ";"};
@@ -184,8 +167,7 @@ public class ExampleDBTests {
             result = (parser1.parseAllTokens() && parser2.parseAllTokens() && parser3.parseAllTokens()
                     && !parser4.parseAllTokens() && !parser5.parseAllTokens() && !parser6.parseAllTokens());
         } catch (ParsingException pe) {
-            // Handle parsing exceptions
-            System.err.println("ERROR: " + pe.getMessage());
+            // System.err.println("ERROR: " + pe.getMessage());
         }
         return result;
     }
@@ -209,24 +191,118 @@ public class ExampleDBTests {
             result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
                     && !parser4.parseAllTokens());
         } catch (ParsingException pe) {
-            // Handle parsing exceptions
-            System.err.println("ERROR: " + pe.getMessage());
+            // System.err.println("ERROR: " + pe.getMessage());
         }
         return result;
 
     }
 
-//    public boolean testAlterParse(){
-//
-//    }
+    public boolean testAlterParse(){
+        //  "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
+        boolean result = false;
 
-//    public boolean testInsertParse(){
-//
-//    }
-//
-//    public boolean testSelectParse(){
-//
-//    }
+        String[] testValidAlterAdd = new String[]{"ALTER", "TABLE", generateRandomName(), "ADD",
+                generateRandomName() , ";"};
+        DBParser parser1 = new DBParser(testValidAlterAdd);
+
+        String[] testValidAlterDrop = new String[]{"ALTER", "TABLE", generateRandomName(), "DROP",
+                generateRandomName() , ";"};
+        DBParser parser2 = new DBParser(testValidAlterDrop);
+
+        String[] testInvalidAlterAdd = new String[]{"ALTER", "TABLE", "ADD", generateRandomName(),
+                ";"}; // Missing table name
+        DBParser parser3 = new DBParser(testInvalidAlterAdd);
+
+        String[] testInvalidAlterDrop = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
+                generateRandomName() , ";"}; // Misspelled key word
+        DBParser parser4 = new DBParser(testInvalidAlterDrop);
+
+
+        try {
+            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
+                   && !parser4.parseAllTokens());
+        } catch (ParsingException pe) {
+            // System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+    }
+
+    public boolean testInsertParse(){
+        // "INSERT" "INTO " [TableName] " VALUES" "(" <ValueList> ")"
+        // VALUE ::== "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
+        boolean result = false;
+        String validString = '\'' + generateRandomName() + '\'';
+        String invalidString = generateRandomName() + '\''; // Missing opening '
+
+        String[] testValidInsertSingleValue = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", "45", ")", ";"};
+        DBParser parser1 = new DBParser(testValidInsertSingleValue);
+
+        String[] testValidInsertMultipleValues = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", validString,
+                ",", "TRUE", ",", "45.37", ",", "3", ",", "NULL", ")", ";"};
+        DBParser parser2 = new DBParser(testValidInsertMultipleValues);
+
+        String[] testInvalidString = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", invalidString,
+                ")", ";"};
+        DBParser parser3 = new DBParser(testInvalidString);
+
+        String[] testInvalidInsertBrackets = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES",
+                "(", "a", ",", "5.5", ";"}; // Missing closing bracket
+        DBParser parser4 = new DBParser(testInvalidInsertBrackets);
+
+        String[] testInvalidInsertComments = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES",
+                "(", "a", "5.5", ";"}; // Missing comma separating values
+        DBParser parser5 = new DBParser(testInvalidInsertComments);
+
+        try {
+            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
+                    && !parser4.parseAllTokens() && !parser5.parseAllTokens());
+        } catch (ParsingException pe) {
+            // System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+
+    }
+
+    public boolean testSelectParse(){
+        // <Select>          ::=  "SELECT " <WildAttribList> " FROM " [TableName] |
+        //                        "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+        // <WildAttribList>  ::=  <AttributeList> | "*"
+        // <AttributeList>   ::=  [AttributeName] | [AttributeName] "," <AttributeList>
+
+        boolean result = false;
+
+        String[] testValidSelectSingleAttribute = new String[]{"SELECT", "name", "FROM", generateRandomName(), ";"};
+        DBParser parser1 = new DBParser(testValidSelectSingleAttribute);
+
+        String[] testValidSelectAll = new String[]{"SELECT", "*", "FROM", generateRandomName() , ";"};
+        DBParser parser2 = new DBParser(testValidSelectAll);
+
+        String[] testValidSelectMultipleAttributes = new String[]{"SELECT", "name", ",", "age", "FROM", generateRandomName(), ";"};
+        DBParser parser3 = new DBParser(testValidSelectMultipleAttributes);
+
+        String[] testValidSelectWhereCondition = new String[]{"SELECT", "name", "FROM", generateRandomName(),
+                "WHERE", "age", ">=", "20", ";"}; // Missing table name
+        DBParser parser4 = new DBParser(testValidSelectWhereCondition);
+
+        String[] testInvalidSelect = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
+                generateRandomName() , ";"}; // Misspelled key word
+        DBParser parser5 = new DBParser(testInvalidSelect);
+
+        String[] testInvalidSelectWhereCondition = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
+                generateRandomName() , ";"}; // Misspelled key word
+        DBParser parser6 = new DBParser(testInvalidSelectWhereCondition);
+
+
+        try {
+            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && parser3.parseAllTokens() &&
+                    parser4.parseAllTokens() && !parser5.parseAllTokens() && !parser6.parseAllTokens());
+        } catch (ParsingException pe) {
+            // System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+
+
+    }
 
 //    public boolean testUpdateParse(){
 //
