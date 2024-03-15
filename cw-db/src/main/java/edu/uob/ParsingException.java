@@ -9,11 +9,4 @@ public class ParsingException extends Exception {
         super(message);
     }
 
-    public ParsingException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
-    public ParsingException(Throwable cause) {
-        super(cause);
-    }
 }

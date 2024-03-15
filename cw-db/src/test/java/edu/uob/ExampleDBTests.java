@@ -122,7 +122,7 @@ public class ExampleDBTests {
 
     @Test
     public void testParser(){
-        assertTrue(testUseParse()); // && testCreateParse() && testDropParse() && testAlterParse() && testInsertParse() &&
+        assertTrue(testUseParse() && testCreateParse() && testDropParse()); //&& testAlterParse() && testInsertParse() &&
                 // testSelectParse() && testUpdateParse() && testDeleteParse() && testJoinParse());
     }
 
@@ -131,16 +131,16 @@ public class ExampleDBTests {
         String validName = generateRandomName();
         String invalidName = generateRandomName() + "!&£*";
 
-        String[] testValidCommand = new String[]{"USE", validName, ";"};
-        DBParser parser1 = new DBParser(testValidCommand);
+        String[] testValidUse = new String[]{"USE", generateRandomName(), ";"};
+        DBParser parser1 = new DBParser(testValidUse);
 
-        String[] testInvalidSpacing = new String[]{"US E", validName, ";"};
+        String[] testInvalidSpacing = new String[]{"US E", generateRandomName(), ";"}; // Improper spacing in command
         DBParser parser2 = new DBParser(testInvalidSpacing);
 
-        String[] testInvalidName = new String[]{"USE", invalidName, ";"};
+        String[] testInvalidName = new String[]{"USE", invalidName, ";"}; // Invalid characters in name
         DBParser parser3 = new DBParser(testInvalidName);
 
-        String[] testNoSemiColon = new String[]{"USE", validName};
+        String[] testNoSemiColon = new String[]{"USE", generateRandomName()}; // Missing semicolon at end
         DBParser parser4 = new DBParser(testNoSemiColon);
 
         try {
@@ -151,15 +151,75 @@ public class ExampleDBTests {
         }
         return result;
     }
-//    public boolean testCreateParse(){
-//
-//    }
-//    public boolean testDropParse(){
-//
-//    }
+
+    public boolean testCreateParse(){
+        //<CreateDatabase>  ::=  "CREATE " "DATABASE " [DatabaseName]
+        //<CreateTable>     ::=  "CREATE " "TABLE " [TableName] | "CREATE " "TABLE " [TableName] "(" <AttributeList> ")"
+        boolean result = false;
+
+        String[] testValidCreateDatabase = new String[]{"CREATE", "DATABASE", generateRandomName(), ";"};
+        DBParser parser1 = new DBParser(testValidCreateDatabase);
+
+        String[] testValidCreateTable = new String[]{"CREATE", "TABLE", generateRandomName(), ";"};
+        DBParser parser2 = new DBParser(testValidCreateTable);
+
+        String[] testValidCreateTableWithAttributes = new String[]{
+                "CREATE", "TABLE", generateRandomName(), "(", generateRandomName(),
+                ",", generateRandomName(), ",", generateRandomName(), ")", ";"};
+        DBParser parser3 = new DBParser(testValidCreateTableWithAttributes);
+
+        String[] testInvalidCreateDatabase = new String[]{"CREATE", "DATABASE",
+                generateRandomName(), generateRandomName(), ";"}; // Two given names
+        DBParser parser4 = new DBParser(testInvalidCreateDatabase);
+
+        String[] testInvalidCreateTable = new String[]{"CREATE", "TABLE", ";"}; // Missing table name
+        DBParser parser5 = new DBParser(testInvalidCreateTable);
+
+        String[] testInvalidCreateTableWithAttributes = new String[]{ // Missing closing brace of attribute list
+                "CREATE", "TABLE", generateRandomName(), "(", generateRandomName(),
+                ",", generateRandomName(), ",", generateRandomName(), ";"};
+        DBParser parser6 = new DBParser(testInvalidCreateTableWithAttributes);
+
+        try {
+            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && parser3.parseAllTokens()
+                    && !parser4.parseAllTokens() && !parser5.parseAllTokens() && !parser6.parseAllTokens());
+        } catch (ParsingException pe) {
+            // Handle parsing exceptions
+            System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+    }
+
+    public boolean testDropParse(){
+        boolean result = false;
+
+        String[] testValidDropDatabase = new String[]{"DROP", "DATABASE", generateRandomName(), ";"};
+        DBParser parser1 = new DBParser(testValidDropDatabase);
+
+        String[] testValidDropTable = new String[]{"DROP", "TABLE", generateRandomName(), ";"};
+        DBParser parser2 = new DBParser(testValidDropTable);
+
+        String[] testInvalidDropDatabase = new String[]{"DROP", "DATABASE", ";"};
+        DBParser parser3 = new DBParser(testInvalidDropDatabase);
+
+        String[] testInvalidDropTable = new String[]{"DROP", "TALE", generateRandomName(), ";"};
+        DBParser parser4 = new DBParser(testInvalidDropTable);
+
+        try {
+            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
+                    && !parser4.parseAllTokens());
+        } catch (ParsingException pe) {
+            // Handle parsing exceptions
+            System.err.println("ERROR: " + pe.getMessage());
+        }
+        return result;
+
+    }
+
 //    public boolean testAlterParse(){
 //
 //    }
+
 //    public boolean testInsertParse(){
 //
 //    }
@@ -167,12 +227,15 @@ public class ExampleDBTests {
 //    public boolean testSelectParse(){
 //
 //    }
+
 //    public boolean testUpdateParse(){
 //
 //    }
+
 //    public boolean testDeleteParse(){
 //
 //    }
+
 //    public boolean testJoinParse(){
 //
 //    }

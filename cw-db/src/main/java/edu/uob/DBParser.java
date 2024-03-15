@@ -17,7 +17,6 @@ public class DBParser {
                     if (!parseCommand()){
                         throw new ParsingException("Invalid command type");
                     }
-                    this.index++;
                 }
 
                 if (commands.length > 0 && !commands[commands.length - 1].equals(";")){
@@ -32,7 +31,6 @@ public class DBParser {
                 // Handle parsing exceptions
                 System.err.println("ERROR: " + pe.getMessage());
             }
-            System.err.println("ERROR: parsing failed!");
             return false;
     }
 
@@ -67,7 +65,7 @@ public class DBParser {
                 return parseJoin();
             }
             default -> {
-                throw new ParsingException("Invalid command format");
+                return false;
             }
         }
     }
@@ -76,6 +74,7 @@ public class DBParser {
         // "USE " [DatabaseName]
         this.index++;
         if (parsePlainText()) { // [DatabaseName] == plainText
+            this.index++;
             return true;
         } else {
             throw new ParsingException("Invalid <USE> syntax");
@@ -86,6 +85,7 @@ public class DBParser {
         this.index++;
         // <CreateDatabase> | <CreateTable>
         if (databaseAndDatabaseName() || parseCreateTable()){
+            this.index++;
             return true;
         } else {
             throw new ParsingException("Invalid <CREATE> syntax");
@@ -94,12 +94,10 @@ public class DBParser {
 
     // Checks for "DATABASE " [DatabaseName]
     public boolean databaseAndDatabaseName() throws ParsingException {
-        // "CREATE " "DATABASE " [DatabaseName]
+        //  "DATABASE " [DatabaseName]
         if (commands[this.index].equals("DATABASE")){
             this.index++;
-            boolean result = parsePlainText(); // [DatabaseName] == plainText
-            this.index++;
-            return result;
+            return parsePlainText(); // [DatabaseName] == plainText
         }
         return false;
     }
@@ -108,9 +106,7 @@ public class DBParser {
     public boolean tableAndTableName() throws ParsingException {
         if (commands[this.index].equals("TABLE")) {
             this.index++;
-            boolean result = parsePlainText();
-            this.index++;
-            return result;
+            return parsePlainText();
         }
         return false;
     }
@@ -119,18 +115,18 @@ public class DBParser {
     public boolean parseCreateTable() throws ParsingException {
         // "TABLE " [TableName] | "TABLE " [TableName] "(" <AttributeList> ")"
         if (tableAndTableName()){
-            if (commands[this.index].equals("(")){
+            int nextIndex = this.index + 1;
+            if (commands[nextIndex].equals("(")){ // Check ahead to see if followed by attribute list
+                this.index = nextIndex + 1; // Skip past opening bracket
                 boolean result = parseAttributeList();
                 this.index++;
-                if (result && commands[this.index].equals(")")){
-                    this.index++;
-                    return true; // Correct
+                if (result && commands[this.index].equals(")")) {
+                    return true;
                 } else {
-                    throw new ParsingException("No attribute list/closing bracket following Create Table command's opening bracket");
+                    throw new ParsingException("Opening bracket in <CreateTable>  is not followed by an attribute list and/or closing bracket");
                 }
-            } else { // Attribute list is optional, all other conditions are met
-                return true;
-
+            } else {
+                return true; // Return true for "TABLE" [TableName] w/o attribute list
             }
         }
         return false;
@@ -141,9 +137,10 @@ public class DBParser {
         this.index++;
         //  "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
         if (databaseAndDatabaseName() || tableAndTableName()){
+            this.index++;
             return true;
         } else {
-            throw new ParsingException("Incorrect <DROP> syntax");
+            throw new ParsingException("Invalid <DROP> syntax");
         }
     }
 
@@ -319,7 +316,7 @@ public class DBParser {
         // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
         for (char c : commands[this.index].toCharArray()){
             if (!(parseDigit(c) || parseLetter(c))){
-                throw new ParsingException("Invalid character in plain text.");
+                return false;
             }
         }
         return true;
@@ -462,9 +459,10 @@ public class DBParser {
     public boolean parseAttributeList() throws ParsingException{
         // [AttributeName] | [AttributeName] "," <AttributeList>
         if (parsePlainText()){
-            this.index++;
-            if (commands[this.index].equals(",")){
-                return parseAttributeList();
+            int nextIndex = this.index+1; // Look ahead to see if list continues
+            if (commands[nextIndex].equals(",")){
+                this.index = nextIndex+1; // Skip past the ","
+                return parseAttributeList(); // Check other attributes are valid
             } else {
                 return true;
             }
