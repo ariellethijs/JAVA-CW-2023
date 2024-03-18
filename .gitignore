@@ -1,7 +1,29 @@
 .DS_Store
 
+# Maven target directory
 /cw-db/target/
 
+# Compiled bytecode
+*.class
+
+# Maven build files
+/cw-db/mvnw.cmd
+/cw-db/mvnw
+release.properties
+dependency-reduced-pom.xml
+
+# Databases content
 /cw-db/databases/
+
+# IntelliJ IDEA
+/cw-db/.idea/
+/cw-db/.mvn/wrapper/
+
+# Temporary files
+*.log
+*.tmp
+
+# Temporary directories
+temp/
 
 
