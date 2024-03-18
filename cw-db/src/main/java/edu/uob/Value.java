@@ -1,8 +1,13 @@
 package edu.uob;
 
+import java.io.IOException;
+
 public class Value extends Attribute {
 
+    String correspondingAttribute;
     int correspondingID;
+
+    String dataAsString;
 
     DBSession currentSession;
     DataType dataType;
@@ -13,39 +18,42 @@ public class Value extends Attribute {
 
     private float dataFloat;
 
-    public Value(int iD, String attributeName, DataType type, DBSession current, Table parentTable){
+    public Value(String value, int iD, String attributeName, DataType type, DBSession current, Table parentTable) throws IOException{
         super(attributeName, current, type, parentTable);
         super.setDataType(type);
         this.currentSession = current;
+        this.correspondingAttribute = attributeName;
         this.correspondingID = iD;
         this.dataType = type;
+        this.dataAsString = value;
+        storeValue(value, type);
     }
 
-    public void storeValue(String value, DataType type){
-        try {
-            switch (type){
-                case STRING -> {
-                    setDataString(value);
-                }
-                case BOOLEAN -> {
-                    if (value.equals("TRUE")) { setDataBoolean(true); }
-                    if (value.equals("FALSE")) { setDataBoolean(false); }
-                }
-                case INTEGER -> {
-                    setDataInteger(Integer.parseInt(value));
-                }
-                case FLOAT -> {
-                    setDataFloat(Float.parseFloat(value));
-                }
-                case UNDEFINED -> {
-
-                }
-                default -> {
-                    throw new Exception("Invalid DataType for value");
-                }
+    public void storeValue(String value, DataType type) throws IOException {
+        switch (type){
+            case STRING -> {
+                setDataString(value);
             }
-        } catch (Exception e) {
+            case BOOLEAN -> {
+                if (value.equals("TRUE")) { setDataBoolean(true); }
+                if (value.equals("FALSE")) { setDataBoolean(false); }
+            }
 
+            case INTEGER -> {
+                setDataInteger(Integer.parseInt(value));
+            }
+
+            case FLOAT -> {
+                setDataFloat(Float.parseFloat(value));
+            }
+
+            case UNDEFINED -> {
+                this.dataAsString = value;
+            }
+
+            default -> {
+                throw new IOException("Invalid DataType for value");
+            }
         }
     }
 
@@ -80,11 +88,5 @@ public class Value extends Attribute {
     public float getDataFloat(){
         return this.dataFloat;
     }
-
-
-
-
-
-
 
 }

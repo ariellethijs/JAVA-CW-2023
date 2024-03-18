@@ -127,181 +127,140 @@ public class ExampleDBTests {
         String validUse = sendCommandToServer("USE " + generateRandomName() + ";");
         assertTrue(validUse.contains("[OK]"));
 
-        String testInvalidSpacing = sendCommandToServer("US E" + generateRandomName() + ";"); // Improper spacing in command
+        String testInvalidSpacing = sendCommandToServer("US E " + generateRandomName() + ";"); // Improper spacing in command
         assertTrue(testInvalidSpacing.contains("[ERROR"));
 
-        String testInvalidName = sendCommandToServer("USE" + invalidName + ";"); // Invalid characters in name
+        String testInvalidName = sendCommandToServer("USE " + invalidName + ";"); // Invalid characters in name
         assertTrue(testInvalidName.contains("[ERROR"));
 
-        String testNoSemiColon = sendCommandToServer("USE" + generateRandomName()); // Missing semicolon at end
+        String testNoSemiColon = sendCommandToServer("USE " + generateRandomName()); // Missing semicolon at end
         assertTrue(testNoSemiColon.contains("[ERROR]"));
     }
 
-    public boolean testCreateParse(){
-        boolean result = false;
+    @Test
+    public void testCreateParse(){
+        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " + generateRandomName() + ";");
+        assertTrue(testValidCreateDatabase.contains("[OK]"));
 
-        String[] testValidCreateDatabase = new String[]{"CREATE", "DATABASE", generateRandomName(), ";"};
-        DBParser parser1 = new DBParser(testValidCreateDatabase);
+        String testValidCreateTable = sendCommandToServer("CREATE TABLE " + generateRandomName() + ";");
+        assertTrue(testValidCreateTable.contains("[OK]"));
 
-        String[] testValidCreateTable = new String[]{"CREATE", "TABLE", generateRandomName(), ";"};
-        DBParser parser2 = new DBParser(testValidCreateTable);
+        String testValidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " + generateRandomName() +
+                        "( " + generateRandomName() + ", " +  generateRandomName() + ", " + generateRandomName() + " );");
+        assertTrue(testValidCreateTableWithAttributes.contains("[OK]"));
 
-        String[] testValidCreateTableWithAttributes = new String[]{
-                "CREATE", "TABLE", generateRandomName(), "(", generateRandomName(),
-                ",", generateRandomName(), ",", generateRandomName(), ")", ";"};
-        DBParser parser3 = new DBParser(testValidCreateTableWithAttributes);
+        String testInvalidCreateDatabase = sendCommandToServer("CREATE DATABASE " + generateRandomName() + " " +
+                generateRandomName() + ";"); // Two given names
+        assertTrue(testInvalidCreateDatabase.contains("[ERROR]"));
 
-        String[] testInvalidCreateDatabase = new String[]{"CREATE", "DATABASE",
-                generateRandomName(), generateRandomName(), ";"}; // Two given names
-        DBParser parser4 = new DBParser(testInvalidCreateDatabase);
+        String testInvalidCreateTable = sendCommandToServer("CREATE TABLE;"); // Missing table name
+        assertTrue(testInvalidCreateTable.contains("[ERROR]"));
 
-        String[] testInvalidCreateTable = new String[]{"CREATE", "TABLE", ";"}; // Missing table name
-        DBParser parser5 = new DBParser(testInvalidCreateTable);
-
-        String[] testInvalidCreateTableWithAttributes = new String[]{ // Missing closing brace of attribute list
-                "CREATE", "TABLE", generateRandomName(), "(", generateRandomName(),
-                ",", generateRandomName(), ",", generateRandomName(), ";"};
-        DBParser parser6 = new DBParser(testInvalidCreateTableWithAttributes);
-
-        try {
-            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && parser3.parseAllTokens()
-                    && !parser4.parseAllTokens() && !parser5.parseAllTokens() && !parser6.parseAllTokens());
-        } catch (ParsingException pe) {
-            // System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
+        // Missing closing brace of attribute list
+        String testInvalidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " + generateRandomName() + "( "
+                        + generateRandomName() + "," + generateRandomName() + "," + generateRandomName() + ";");
+        assertTrue(testInvalidCreateTableWithAttributes.contains("[ERROR]"));
     }
 
-    public boolean testDropParse(){
-        boolean result = false;
+    @Test
+    public void testDropParse(){
+        String testValidDropDatabase = sendCommandToServer("DROP DATABASE " +generateRandomName() + ";");
+        assertTrue(testValidDropDatabase.contains("[OK]"));
 
-        String[] testValidDropDatabase = new String[]{"DROP", "DATABASE", generateRandomName(), ";"};
-        DBParser parser1 = new DBParser(testValidDropDatabase);
+        String testValidDropTable = sendCommandToServer("DROP TABLE " +generateRandomName() + ";");
+        assertTrue(testValidDropTable.contains("[OK]"));
 
-        String[] testValidDropTable = new String[]{"DROP", "TABLE", generateRandomName(), ";"};
-        DBParser parser2 = new DBParser(testValidDropTable);
+        String testInvalidDropDatabase = sendCommandToServer("DROP DATABASE;");
+        assertTrue(testInvalidDropDatabase.contains("[ERROR]"));
 
-        String[] testInvalidDropDatabase = new String[]{"DROP", "DATABASE", ";"};
-        DBParser parser3 = new DBParser(testInvalidDropDatabase);
-
-        String[] testInvalidDropTable = new String[]{"DROP", "TALE", generateRandomName(), ";"};
-        DBParser parser4 = new DBParser(testInvalidDropTable);
-
-        try {
-            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
-                    && !parser4.parseAllTokens());
-        } catch (ParsingException pe) {
-            // System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
-
+        String testInvalidDropTable = sendCommandToServer("DROP TALE " +generateRandomName() + ";");
+        assertTrue(testInvalidDropTable.contains("[ERROR]"));
     }
 
-    public boolean testAlterParse(){
-        //  "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
-        boolean result = false;
 
-        String[] testValidAlterAdd = new String[]{"ALTER", "TABLE", generateRandomName(), "ADD",
-                generateRandomName() , ";"};
-        DBParser parser1 = new DBParser(testValidAlterAdd);
+    @Test
+    public void testAlterParse(){
+        String testValidAlterAdd = sendCommandToServer("ALTER TABLE " +generateRandomName() + " ADD "
+                +generateRandomName() + ";");
+        assertTrue(testValidAlterAdd.contains("[OK]"));
 
-        String[] testValidAlterDrop = new String[]{"ALTER", "TABLE", generateRandomName(), "DROP",
-                generateRandomName() , ";"};
-        DBParser parser2 = new DBParser(testValidAlterDrop);
+        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +generateRandomName() + " DROP "
+                +generateRandomName() + ";");
+        assertTrue(testValidAlterDrop.contains("[OK]"));
 
-        String[] testInvalidAlterAdd = new String[]{"ALTER", "TABLE", "ADD", generateRandomName(),
-                ";"}; // Missing table name
-        DBParser parser3 = new DBParser(testInvalidAlterAdd);
+        // Missing alteration type
+        String testInvalidAlter = sendCommandToServer("ALTER TABLE " +generateRandomName() + " "
+                +generateRandomName() + ";");
+        assertTrue(testInvalidAlter.contains("[ERROR]"));
 
-        String[] testInvalidAlterDrop = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
-                generateRandomName() , ";"}; // Misspelled key word
-        DBParser parser4 = new DBParser(testInvalidAlterDrop);
-
-
-        try {
-            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
-                   && !parser4.parseAllTokens());
-        } catch (ParsingException pe) {
-            // System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
+        // Misspelled key word
+        String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " + generateRandomName() + " DRIP " +
+                generateRandomName() + ";");
+        assertTrue(testInvalidAlterDrop.contains("[ERROR]"));
     }
 
-    public boolean testInsertParse(){
-        // "INSERT" "INTO " [TableName] " VALUES" "(" <ValueList> ")"
-        // VALUE ::== "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
-        boolean result = false;
+    @Test
+    public void testInsertParse(){
         String validString = '\'' + generateRandomName() + '\'';
         String invalidString = generateRandomName() + '\''; // Missing opening '
 
-        String[] testValidInsertSingleValue = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", "45", ")", ";"};
-        DBParser parser1 = new DBParser(testValidInsertSingleValue);
+        String testValidInsertSingleValue = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (45);");
+        assertTrue(testValidInsertSingleValue.contains("[OK]"));
 
-        String[] testValidInsertMultipleValues = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", validString,
-                ",", "TRUE", ",", "45.37", ",", "3", ",", "NULL", ")", ";"};
-        DBParser parser2 = new DBParser(testValidInsertMultipleValues);
+        String testValidInsertMultipleValues = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (" + validString +
+                ", TRUE, 45.37, 3, NULL);");
+        assertTrue(testValidInsertMultipleValues.contains("[OK]"));
 
-        String[] testInvalidString = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES", "(", invalidString,
-                ")", ";"};
-        DBParser parser3 = new DBParser(testInvalidString);
+        // No single quotes around string literal
+        String testInvalidString = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (" + invalidString +
+                ");");
+        assertTrue(testInvalidString.contains("[ERROR]"));
 
-        String[] testInvalidInsertBrackets = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES",
-                "(", "a", ",", "5.5", ";"}; // Missing closing bracket
-        DBParser parser4 = new DBParser(testInvalidInsertBrackets);
+        // Missing closing bracket
+        String testInvalidInsertBrackets = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES(a, 5.5;");
+        assertTrue(testInvalidInsertBrackets.contains("[ERROR]"));
 
-        String[] testInvalidInsertComments = new String[]{"INSERT", "INTO", generateRandomName(), "VALUES",
-                "(", "a", "5.5", ";"}; // Missing comma separating values
-        DBParser parser5 = new DBParser(testInvalidInsertComments);
+        // Missing comma separating values
+        String testInvalidInsertCommas = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES(a 5, 17);");
+        assertTrue(testInvalidInsertCommas.contains("[ERROR]"));
 
-        try {
-            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && !parser3.parseAllTokens()
-                    && !parser4.parseAllTokens() && !parser5.parseAllTokens());
-        } catch (ParsingException pe) {
-            // System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
+        // Multiple decimal points in float literal
+        String testInvalidInsertFloat = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES( 5.1.7 );");
+        assertTrue(testInvalidInsertFloat.contains("[ERROR]"));
 
     }
 
-    public boolean testSelectParse(){
+    @Test
+    public void testSelectParse(){
         // <Select>          ::=  "SELECT " <WildAttribList> " FROM " [TableName] |
         //                        "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
         // <WildAttribList>  ::=  <AttributeList> | "*"
         // <AttributeList>   ::=  [AttributeName] | [AttributeName] "," <AttributeList>
 
-        boolean result = false;
+//         "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> |
+//         "(" [AttributeName] <Comparator> [Value] ")" |  [AttributeName] <Comparator> [Value]
 
-        String[] testValidSelectSingleAttribute = new String[]{"SELECT", "name", "FROM", generateRandomName(), ";"};
-        DBParser parser1 = new DBParser(testValidSelectSingleAttribute);
+        String testValidSelectSingleAttribute = sendCommandToServer("SELECT name FROM table1;");
+        assertTrue(testValidSelectSingleAttribute.contains("[OK]"));
 
-        String[] testValidSelectAll = new String[]{"SELECT", "*", "FROM", generateRandomName() , ";"};
-        DBParser parser2 = new DBParser(testValidSelectAll);
+        String testValidSelectAll = sendCommandToServer("SELECT * FROM " +generateRandomName() + ";");
+        assertTrue(testValidSelectAll.contains("[OK]"));
 
-        String[] testValidSelectMultipleAttributes = new String[]{"SELECT", "name", ",", "age", "FROM", generateRandomName(), ";"};
-        DBParser parser3 = new DBParser(testValidSelectMultipleAttributes);
+        String testValidSelectMultipleAttributes = sendCommandToServer("SELECT name, age FROM " + generateRandomName() + ";");
+        assertTrue(testValidSelectMultipleAttributes.contains("[OK]"));
 
-        String[] testValidSelectWhereCondition = new String[]{"SELECT", "name", "FROM", generateRandomName(),
-                "WHERE", "age", ">=", "20", ";"}; // Missing table name
-        DBParser parser4 = new DBParser(testValidSelectWhereCondition);
+        String testValidSelectWhereCondition = sendCommandToServer("SELECT name FROM " + generateRandomName() +
+                " WHERE age >= 20;");
+        assertTrue(testValidSelectWhereCondition.contains("[OK]"));
 
-        String[] testInvalidSelect = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
-                generateRandomName() , ";"}; // Misspelled key word
-        DBParser parser5 = new DBParser(testInvalidSelect);
+        String testMissingComparator = sendCommandToServer("SELECT name FROM " +generateRandomName() + " WHERE age 20;");
+        assertTrue(testMissingComparator.contains("[ERROR]"));
 
-        String[] testInvalidSelectWhereCondition = new String[]{"ALTER", "TABLE", generateRandomName(), "DRIP",
-                generateRandomName() , ";"}; // Misspelled key word
-        DBParser parser6 = new DBParser(testInvalidSelectWhereCondition);
+        String testMissingAttribute = sendCommandToServer("SELECT FROM " +generateRandomName() + " WHERE age == 20;");
+        assertTrue(testMissingAttribute.contains("[ERROR]"));
 
-
-        try {
-            result = (parser1.parseAllTokens() && parser2.parseAllTokens() && parser3.parseAllTokens() &&
-                    parser4.parseAllTokens() && !parser5.parseAllTokens() && !parser6.parseAllTokens());
-        } catch (ParsingException pe) {
-            // System.err.println("ERROR: " + pe.getMessage());
-        }
-        return result;
-
-
+        String testNestedConditions = sendCommandToServer("SELECT name FROM table WHERE ((name == 'Barry') AND (age <= 40));");
+        assertTrue(testNestedConditions.contains("[OK]"));
     }
 
 //    public boolean testUpdateParse(){
@@ -317,6 +276,62 @@ public class ExampleDBTests {
 //    }
 
 
+//    @Test
+//    public void testInterpretUse(){
+//
+//    }
+
+    @Test
+    public void testInterpretCreate(){
+        String randomName = generateRandomName();
+
+        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " +randomName + ";");
+        assertTrue(testValidCreateDatabase.contains("[OK]"));
+
+        String testValidUseDatabase = sendCommandToServer("USE " +randomName + ";");
+        assertTrue(testValidUseDatabase.contains("[OK]"));
+
+        String testValidCreateTable = sendCommandToServer("CREATE TABLE " + generateRandomName() + ";");
+        assertTrue(testValidCreateTable.contains("[OK]"));
+
+        String testValidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " +generateRandomName() + " ( "
+                + generateRandomName() + ", " +  generateRandomName() + ", " + generateRandomName() + " );");
+        assertTrue(testValidCreateTableWithAttributes.contains("[OK]"));
+    }
+
+    @Test
+    public void testInterpretDrop(){
+        String databaseName = generateRandomName();
+        String table1Name = generateRandomName(); // Set the name to try an individual table drop
+
+        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        assertTrue(testValidCreateDatabase.contains("[OK]"));
+
+        String testValidUseDatabase = sendCommandToServer("USE " +databaseName + ";");
+        assertTrue(testValidUseDatabase.contains("[OK]"));
+
+        String testValidCreateTable = sendCommandToServer("CREATE TABLE " + table1Name + ";");
+        assertTrue(testValidCreateTable.contains("[OK]"));
+
+        String testValidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " +generateRandomName() + " ( "
+                + generateRandomName() + ", " +  generateRandomName() + ", " + generateRandomName() + " );");
+        assertTrue(testValidCreateTableWithAttributes.contains("[OK]"));
+
+        sendCommandToServer("CREATE TABLE " +generateRandomName() + " ( " + generateRandomName() + ", " +
+                generateRandomName() + ", " + generateRandomName() + " );");
+
+        String validTableDrop = sendCommandToServer("DROP TABLE " +table1Name + ";");
+        assertTrue(validTableDrop.contains("[OK]"));
+
+        String testValidCreateNewTable = sendCommandToServer("CREATE TABLE " + table1Name + ";");
+        // Create table with the same name and see if permitted
+        assertTrue(testValidCreateNewTable.contains("[OK]")); // Modify this for an insert or smthn when implemented
 
 
+        String validDatabaseDrop = sendCommandToServer("DROP DATABASE " +databaseName + ";");
+        assertTrue(validDatabaseDrop.contains("[OK]"));
+
+        String testUseDeletedDatabase = sendCommandToServer("USE " +databaseName + ";");
+        assertTrue(testUseDeletedDatabase.contains("[ERROR]"));
+    }
 }

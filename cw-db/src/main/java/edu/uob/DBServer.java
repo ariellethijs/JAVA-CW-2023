@@ -2,7 +2,6 @@ package edu.uob;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
@@ -22,10 +21,6 @@ public class DBServer {
     public static void main(String[] args) throws IOException {
         DBServer server = new DBServer();
         server.blockingListenOn(8888);
-
-
-//        String storageFolderPath = server.getStorageFolderPath();
-//
     }
 
     /**
@@ -39,6 +34,12 @@ public class DBServer {
         } catch(IOException ioe) {
             System.out.println("Can't seem to create database storage folder " + storageFolderPath);
         }
+
+        try {
+            this.currentSession = new DBSession(getStorageFolderPath());
+        } catch (IOException fileException){
+            System.out.println("[ERROR] " + fileException.getMessage());
+        }
     }
 
     /**
@@ -48,18 +49,13 @@ public class DBServer {
     * <p>This method handles all incoming DB commands and carries out the required actions.
     */
     public String handleCommand(String command) {
-        try {
-            DBSession currentSession = new DBSession(getStorageFolderPath());
-        } catch (IOException fileException){
-            return ("[ERROR] " + fileException.getMessage());
-        }
 
         DBTokeniser tokeniser = new DBTokeniser();
         ArrayList<String> tokens = tokeniser.tokeniseInput(command);
         String[] commands = tokens.toArray(new String[0]);
 
         DBParser parser = new DBParser(commands);
-        DBInterpreter interpreter = new DBInterpreter(commands, currentSession);
+        DBInterpreter interpreter = new DBInterpreter(commands, this.currentSession);
 
         try {
             parser.parseAllTokens();
@@ -69,7 +65,7 @@ public class DBServer {
                  interpreter.interpretCommand(startIndex);
             }
         } catch (IOException e) {
-               return ("[ERROR] " + e.getMessage());
+            return ("[ERROR] " + e.getMessage());
         }
         return "[OK]";
     }
@@ -106,10 +102,6 @@ public class DBServer {
                 writer.flush();
             }
         }
-    }
-
-    public DBSession getCurrentSession(){
-        return currentSession;
     }
 
     public String getStorageFolderPath(){

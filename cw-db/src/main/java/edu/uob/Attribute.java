@@ -20,6 +20,10 @@ public class Attribute {
         allValues = new ArrayList<>();
     }
 
+    public String getAttributeName(){
+        return this.name;
+    }
+
     public void setDataType(DataType type){
         this.dataType = type;
     }
@@ -32,7 +36,7 @@ public class Attribute {
         allValues.remove(v);
     }
 
-    public String getName(){
+    public String getDataAsString(){
         return this.name;
     }
 

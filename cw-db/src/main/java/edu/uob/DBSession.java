@@ -1,25 +1,43 @@
 package edu.uob;
 
+import java.awt.image.DataBufferByte;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class DBSession {
     ArrayList<Database> allDatabases;
-    Database currentDB;
+    ArrayList<File> allDatabaseDirectories;
+    Database databaseInUse;
 
-    public DBSession(String storageFolderPath) throws IOException {
-        // needs to search the database folder and read them in for memory to be persistent?
-        // Not 100% sure need to do some more research :)
+    public boolean databaseIsInUse;
+
+    String storageFolderPath;
+
+    int indexID;
+
+    public DBSession(String folderPath) throws IOException {
+        this.indexID = 0;
+        this.storageFolderPath = folderPath;
+        databaseInUse = new Database("initializer", this);
+        databaseIsInUse = false;
+        this.allDatabases = new ArrayList<>();
+        this.allDatabaseDirectories = new ArrayList<>();
+        storeDatabasesInDataFolder();
+    }
+
+    public void storeDatabasesInDataFolder() throws IOException {
         File directory = new File(storageFolderPath);
 
         // Get subdirectories (databases) in the main directory
         File[] databaseDirectories = directory.listFiles(File::isDirectory);
         if (databaseDirectories != null) {
             for (File databaseDirectory : databaseDirectories) {
-                String databaseName = getNameWithoutExtension(databaseDirectory);
+                String databaseName = databaseDirectory.getName();
                 if (!dbExists(databaseName)) { // Skips over databases which are already stored
                     Database currentDatabase = createDatabase(databaseName); // Create a new database
                     storeFilesInDatabaseDirectory(databaseDirectory, currentDatabase); // Store files as tables
@@ -30,6 +48,7 @@ public class DBSession {
 
     private void storeFilesInDatabaseDirectory(File databaseDirectory, Database currentDatabase) throws IOException {
         File[]databaseFiles = databaseDirectory.listFiles();
+
         if (databaseFiles != null){
             for (File databaseFile : databaseFiles){
                 if (databaseFile.isFile() && databaseFile.getName().endsWith(".tab")){
@@ -54,43 +73,54 @@ public class DBSession {
         }
     }
 
-    public void storeFile(File currentFile, Table currentTable){
-        try (BufferedReader reader = new BufferedReader(new FileReader(currentFile))){
+    public void storeFile(File currentFile, Table currentTable) throws IOException {
+            BufferedReader reader = new BufferedReader(new FileReader(currentFile));
             String currentLine;
             boolean isHeaderLine = true;
             while ((currentLine = reader.readLine()) != null) {
                 String[] values = currentLine.split("\t");
                 if (isHeaderLine) {
-                    storeAttributes(values, currentTable);
+                    storeAttributesFromFile(values, currentTable);
                     isHeaderLine = false;
                 } else {
-                    storeValues(values, currentTable);
+                    storeValuesFromFile(values, currentTable);
                 }
             }
-        } catch (IOException e){
-            System.err.println(" Failed to read file: " + e.getMessage());
-        }
     }
 
-    public void storeAttributes(String[] attributes, Table currentTable){
+    public void storeAttributesFromFile(String[] attributes, Table currentTable) throws IOException {
         for (String attributeName : attributes){
             currentTable.createAttribute(attributeName, DataType.UNDEFINED);
         }
     }
 
-    public void storeValues(String[] values, Table currentTable){
+    public void storeValuesFromFile(String[] values, Table currentTable) throws IOException {
+        int rowID = -1;
         int columnIndex = 0;
         for (String value : values){
-            currentTable.createValueFromString(currentTable.getAttributeNameFromIndex(columnIndex), value);
+            if (columnIndex == 0){
+                rowID = Integer.parseInt(value); // Find the ID of the row you're on
+                this.indexID = Math.max(this.indexID, rowID); // Store the ID index if it's higher than the current one
+            }
+            if (rowID < 0){
+                throw new IOException("id column is stored incorrectly in Table " +currentTable.getTableName());
+            } else {
+                currentTable.createValueFromString(currentTable.getAttributeNameFromIndex(columnIndex), value, rowID);
+            }
             columnIndex++;
         }
     }
 
-    public void setCurrentDB(Database db){
-        this.currentDB = db;
+    public void setDatabaseInUse(Database db){
+        this.databaseInUse = db;
+    }
+
+    public Database getDatabaseInUse(){
+        return this.databaseInUse;
     }
 
     public boolean dbExists(String dbName){
+
         for (Database db : allDatabases){
             if (db.getDBName().equals(dbName)){
                 return true;
@@ -99,22 +129,88 @@ public class DBSession {
         return false;
     }
 
-    public Database getDatabaseByName(String dbName){
+    public Database getDatabaseByName(String dbName) throws IOException {
         for (Database db : allDatabases){
             if (db.getDBName().equals(dbName)){
                 return db;
             }
         }
-        return null;
+        throw new IOException("No such database exists");
     }
 
+    public int getIndexID(){
+        return this.indexID;
+    }
 
-    public Database createDatabase(String dbName){
+    public void incrementIndexID(){
+        this.indexID++;
+    }
+
+    public Database createDatabase(String dbName) throws IOException {
         Database newDB = new Database(dbName, this);
         allDatabases.add(newDB);
         return newDB;
     }
 
+    public void createDatabaseDirectory(String databaseName) throws IOException {
+        String directoryNameAndPath = storageFolderPath + File.separator + databaseName;
+        File newDirectory = new File(directoryNameAndPath);
+        Files.createDirectory(newDirectory.toPath());
+        Database currentDatabase = getDatabaseByName(databaseName);
+        currentDatabase.setDatabaseDirectory(newDirectory);
+        allDatabaseDirectories.add(newDirectory);
+    }
+
+    public File getDatabaseDirectoryFromName(String databaseName){
+        for (File dbDirectory : allDatabaseDirectories){
+            if (dbDirectory.getName().equals(databaseName)){
+                return dbDirectory;
+            }
+        }
+        return null;
+
+    }
+
+    public void deleteDatabase(String databaseName) throws IOException {
+        Database database = getDatabaseByName(databaseName);
+        File databaseDirectory = getDatabaseDirectoryFromName(databaseName);
+
+        // Create a copy of the allTables list to avoid concurrent mod except
+        ArrayList<Table> tablesToRemove = new ArrayList<>(database.allTables);
+
+        // Delete all tables & tableFiles
+        for (Table table : tablesToRemove) {
+            String tableName = table.getTableName();
+            database.deleteTable(tableName);
+        }
+
+        // Remove database directory & database
+        if (databaseDirectory.exists()) {
+            if (!deleteDirectory(databaseDirectory)) {
+                throw new IOException("Failed to delete database directory: " + databaseDirectory.getAbsolutePath());
+            }
+        } else {
+            throw new IOException("Database directory not found: " + databaseDirectory.getAbsolutePath());
+        }
+
+        allDatabaseDirectories.remove(databaseDirectory);
+        allDatabases.remove(database);
+    }
+
+    public boolean deleteDirectory(File databaseDirectory) {
+        if (!databaseDirectory.exists()) {
+            return false;
+        }
+        File[] tableFiles = databaseDirectory.listFiles();
+        if (tableFiles != null) {
+            for (File tableFile : tableFiles) {
+                if (!tableFile.delete()) {
+                    return false;
+                }
+            }
+        }
+        return databaseDirectory.delete();
+    }
 
 
 

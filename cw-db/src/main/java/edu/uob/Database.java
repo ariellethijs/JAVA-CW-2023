@@ -1,5 +1,8 @@
 package edu.uob;
 
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.util.ArrayList;
 
 public class Database {
@@ -7,20 +10,35 @@ public class Database {
     ArrayList<Table> allTables;
     DBSession currentSession;
 
+    File databaseDirectory;
+
+    ArrayList<File> allTableFiles;
+
     public Database(String DbName, DBSession current){
         this.name = DbName;
         this.currentSession = current;
-        this.allTables = new ArrayList<Table>();
+        this.allTables = new ArrayList<>();
+        this.allTableFiles = new ArrayList<>();
     }
 
     public String getDBName(){
         return this.name;
     }
 
-    public Table createTable(String tableName, DBSession currentSession){
+    public Table createTable(String tableName, DBSession currentSession) throws IOException {
         Table newTable = new Table(tableName, currentSession, this);
-        allTables.add(newTable); // Logic for file creation here?
+        allTables.add(newTable);
         return newTable;
+    }
+
+    public void createTableFile(String tableName, Table newTable) throws IOException {
+        String tableNameAndPath = this.databaseDirectory.getAbsolutePath() + File.separator + tableName + ".tab";
+        File newFile = new File(tableNameAndPath);
+        if (!newFile.exists()) { // If the file doesn't exist yet, create it
+            Files.createFile(newFile.toPath());
+            allTableFiles.add(newFile);
+            newTable.setTableFile(newFile);
+        }
     }
 
     public Table getTableByName(String name){
@@ -41,6 +59,33 @@ public class Database {
         return false;
     }
 
+    public void setDatabaseDirectory(File directory){
+        this.databaseDirectory = directory;
+    }
 
+    public File getFileByTableName(String tableName) throws IOException {
+        for (File tableFile : allTableFiles){
+            if (tableFile.getName().equals(tableName + ".tab")){
+                return tableFile;
+            }
+        }
+        throw new IOException("No such table exists");
+    }
+
+    public void deleteTable(String tableName) throws IOException {
+        Table table = getTableByName(tableName);
+        File tableFile = getFileByTableName(tableName);
+        allTables.remove(table); // Remove from list
+        allTableFiles.remove(tableFile);
+
+        // Delete the table file from the file system
+        if (tableFile.exists()) {
+            if (!tableFile.delete()) {
+                throw new IOException("Failed to delete table file: " + tableFile.getAbsolutePath());
+            }
+        } else {
+            throw new IOException("Table file not found: " + tableFile.getAbsolutePath());
+        }
+    }
 
 }
