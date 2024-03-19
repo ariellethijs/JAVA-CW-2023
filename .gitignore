@@ -7,8 +7,6 @@
 *.class
 
 # Maven build files
-/cw-db/mvnw.cmd
-/cw-db/mvnw
 release.properties
 dependency-reduced-pom.xml
 
