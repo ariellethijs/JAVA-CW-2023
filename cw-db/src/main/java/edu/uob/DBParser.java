@@ -8,10 +8,22 @@ public class DBParser {
 
     public ArrayList<Integer> validCommandStartingIndexes;
 
+    public String[] sqlKeywords;
+
     public DBParser(String[] commandTokens){
         this.commands = commandTokens;
         this.index = 0;
         this.validCommandStartingIndexes = new ArrayList<>();
+        this.sqlKeywords = new String[]{
+                "USE", "CREATE", "DATABASE",
+                "TABLE", "DROP", "ALTER",
+                "INSERT", "INTO", "VALUES",
+                "SELECT", "FROM", "WHERE",
+                "UPDATE", "SET", "DELETE",
+                "JOIN", "AND", "ON", "OR",
+                "ADD", "LIKE", "TRUE",
+                "FALSE", "NULL"
+        };
     }
 
     public void parseAllTokens() throws IOException {
@@ -35,7 +47,9 @@ public class DBParser {
     }
 
     public boolean parseCommand() throws IOException {
-        switch (commands[this.index]) {
+        String uppercaseCommand = commands[this.index].toUpperCase(); // To deal with case insensitivity
+
+        switch (uppercaseCommand) {
             case "USE" -> {
                 return parseUse();
             }
@@ -95,7 +109,7 @@ public class DBParser {
     // Checks for "DATABASE " [DatabaseName]
     public boolean databaseAndDatabaseName() throws IOException {
         //  "DATABASE " [DatabaseName]
-        if (commands[this.index].equals("DATABASE")){
+        if (commands[this.index].equalsIgnoreCase("DATABASE")){
             this.index++;
             return parsePlainText(); // [DatabaseName] == plainText
         }
@@ -104,7 +118,7 @@ public class DBParser {
 
     // Checks for "TABLE " [TableName]
     public boolean tableAndTableName() throws IOException {
-        if (commands[this.index].equals("TABLE")) {
+        if (commands[this.index].equalsIgnoreCase("TABLE")) {
             this.index++;
             return parsePlainText();
         }
@@ -168,11 +182,11 @@ public class DBParser {
         this.index++;
         // "INTO " [TableName] " VALUES" "(" <ValueList> ")"
         boolean validSyntax = false;
-        if (commands[this.index].equals("INTO")){
+        if (commands[this.index].equalsIgnoreCase("INTO")){
             this.index++;
             if (parsePlainText()){
                 this.index++;
-                if (commands[this.index].equals("VALUES")){
+                if (commands[this.index].equalsIgnoreCase("VALUES")){
                     this.index++;
                     if (commands[this.index].equals("(")){
                         this.index++;
@@ -195,7 +209,7 @@ public class DBParser {
         //  <WildAttribList> " FROM " [TableName] |  <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
         if (parseFullSelect()){
             this.index++;
-            if (commands[this.index].equals("WHERE")){
+            if (commands[this.index].equalsIgnoreCase("WHERE")){
                 return whereCondition();
             } else {
                 this.index++;
@@ -210,7 +224,7 @@ public class DBParser {
         // <WildAttribList> " FROM " [TableName]
         if (parseWildAttributeList()){
             this.index++;
-            if (commands[this.index].equals("FROM")){
+            if (commands[this.index].equalsIgnoreCase("FROM")){
                 this.index++;
                 return parsePlainText();
             }
@@ -220,7 +234,7 @@ public class DBParser {
 
     public boolean whereCondition() throws IOException{
         // " WHERE " <Condition>
-        if (commands[this.index].equals("WHERE")){
+        if (commands[this.index].equalsIgnoreCase("WHERE")){
             this.index++;
             return parseCondition();
         }
@@ -232,7 +246,7 @@ public class DBParser {
         // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         boolean validSyntax = false;
         if (parsePlainText()){
-            if (commands[this.index].equals(" SET ")){
+            if (commands[this.index].equalsIgnoreCase("SET")){
                 if (parseNameValueList()){
                     validSyntax = whereCondition();
                 }
@@ -251,7 +265,7 @@ public class DBParser {
         this.index++;
         // "FROM " [TableName] " WHERE " <Condition>
         boolean validSyntax = false;
-        if (commands[this.index].equals("FROM ")){
+        if (commands[this.index].equalsIgnoreCase("FROM")){
             this.index++;
             if (parsePlainText()){
                 this.index++;
@@ -272,7 +286,7 @@ public class DBParser {
         boolean validSyntax = false;
         if (nameAndName()){
             this.index++;
-            if (commands[this.index].equals(" ON ")) {
+            if (commands[this.index].equalsIgnoreCase("ON")) {
                 this.index++;
                 validSyntax = nameAndName();
                 this.index++;
@@ -290,7 +304,7 @@ public class DBParser {
         // [TableName] " AND " [TableName] " || " [AttributeName] " AND " [AttributeName]
         if (parsePlainText()) {
             this.index++;
-            if (commands[this.index].equals("AND ")) {
+            if (commands[this.index].equalsIgnoreCase("AND")) {
                 this.index++;
                 return parsePlainText();
             }
@@ -312,17 +326,30 @@ public class DBParser {
         return parseUpper(c) || parseLower(c);
     }
 
-    // [TableName]       ::=  [PlainText]
-    // [AttributeName]   ::=  [PlainText]
-    // [DatabaseName]    ::=  [PlainText]
-    public boolean parsePlainText() {
+    // CANNOT BE KEYWORD
+    public boolean parsePlainText() throws IOException {
+        // [TableName] && [AttributeName] && [DatabaseName] ::==
         // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
-        for (char c : commands[this.index].toCharArray()){
-            if (!(parseDigit(c) || parseLetter(c))){
-                return false;
+
+        if (isKeyword()){
+            throw new IOException("Cannot use KEYWORD as a [TableName] || [AttributeName] || [DatabaseName]");
+        } else {
+            for (char c : commands[this.index].toCharArray()){
+                if (!(parseDigit(c) || parseLetter(c))){
+                    return false;
+                }
             }
         }
         return true;
+    }
+
+    public boolean isKeyword() throws IOException {
+        for (String keyword : this.sqlKeywords){
+            if (commands[this.index].equalsIgnoreCase(keyword)){
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean parseSymbol(char c){
@@ -367,7 +394,7 @@ public class DBParser {
 
     public boolean parseAlterationType(){
         //  "ADD" | "DROP"
-        return (commands[this.index].equals("ADD") || commands[this.index].equals("DROP"));
+        return (commands[this.index].equalsIgnoreCase("ADD") || commands[this.index].equalsIgnoreCase("DROP"));
     }
 
     boolean containsAtLeastOneValue = false;
@@ -429,7 +456,7 @@ public class DBParser {
 
 
     public boolean parseBooleanLiteral(){
-        return (commands[this.index].equals("TRUE") || commands[this.index].equals("FALSE"));
+        return (commands[this.index].equalsIgnoreCase("TRUE") || commands[this.index].equalsIgnoreCase("FALSE"));
     }
 
     public boolean parseCharLiteral(char c){
@@ -460,7 +487,7 @@ public class DBParser {
     public boolean parseValue() {
         // "'" [StringLiteral] "'" | [BooleanLiteral] | [FloatLiteral] | [IntegerLiteral] | "NULL"
         return (parseStringLiteral() || parseBooleanLiteral() || parseFloatLiteral() || parseIntegerLiteral() ||
-                commands[this.index].equals("NULL"));
+                commands[this.index].equalsIgnoreCase("NULL"));
     }
 
     public boolean parseWildAttributeList() throws IOException {
@@ -545,7 +572,7 @@ public class DBParser {
 
     public boolean parseBoolOperator(String token){
         // "AND" || "OR"
-        return (token.equals("AND") || token.equals("OR"));
+        return (token.equalsIgnoreCase("AND") || token.equalsIgnoreCase("OR"));
     }
 
 
@@ -554,7 +581,7 @@ public class DBParser {
         String[] comparators = {"==", ">", "<", ">=", "<=", "!=", "LIKE"};
 
         for (String x : comparators) {
-            if (commands[this.index].equals(x)){
+            if (commands[this.index].equalsIgnoreCase(x)){
                 return true;
             }
         }

@@ -16,8 +16,9 @@ public class DBInterpreter {
 
     public void interpretCommand(int commandStartIndex) throws IOException {
         this.index = commandStartIndex;
+        String uppercaseCommand = commands[this.index].toUpperCase();
 
-        switch (commands[this.index]) {
+        switch (uppercaseCommand) {
             case "USE" -> {
                 executeUse();
             }
@@ -53,7 +54,6 @@ public class DBInterpreter {
 
     public void executeUse() throws IOException {
         this.index++;
-
         if (currentSession.dbExists(commands[this.index])){
             Database currentDatabase = currentSession.getDatabaseByName(commands[this.index]);
             currentSession.setDatabaseInUse(currentDatabase);
@@ -65,10 +65,12 @@ public class DBInterpreter {
     public void executeCreate() throws IOException {
         this.index++;
 
-        if (commands[this.index].equals("DATABASE")){
+        if (commands[this.index].equalsIgnoreCase("DATABASE")){
             executeCreateDatabase();
-        } else if (commands[this.index].equals("TABLE")){
+        } else if (commands[this.index].equalsIgnoreCase("TABLE")){
             executeCreateTable();
+        } else {
+            throw new IOException("<CREATE> command is only applicable to tables and databases");
         }
     }
 
@@ -112,10 +114,12 @@ public class DBInterpreter {
     public void executeDrop() throws IOException {
         // "DROP " "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
         this.index++;
-        if (commands[this.index].equals("DATABASE")){
+        if (commands[this.index].equalsIgnoreCase("DATABASE")){
             executeDropDatabase();
-        } else if (commands[this.index].equals("TABLE")){
+        } else if (commands[this.index].equalsIgnoreCase("TABLE")){
             executeDropTable();
+        } else {
+            throw new IOException("<DROP> command is only applicable to tables and databases");
         }
     }
 
@@ -159,10 +163,10 @@ public class DBInterpreter {
 
         if (currentDatabase.tableExists(tableName)){
             Table currentTable = currentDatabase.getTableByName(tableName);
-            if (alterationType.equals("ADD")){
+            if (alterationType.equalsIgnoreCase("ADD")){
                 this.index = nextIndex+1; // Skip past alteration type and execute
                 executeAlterAdd(currentTable);
-            } else if (alterationType.equals("DROP")){
+            } else if (alterationType.equalsIgnoreCase("DROP")){
                 this.index = nextIndex+1;
                 executeAlterDrop(currentTable);
             } else {
@@ -181,6 +185,9 @@ public class DBInterpreter {
             throw new IOException("Cannot <ALTER> a table by adding an attribute which already exist");
         }
     }
+
+    // NEED TO ADD THIS TO ALTER DROP : !!!!!!!!!!!!!!!!!!!!
+    // attempting to remove the ID column from a table
 
     public void executeAlterDrop(Table currentTable) throws IOException {
         String attributeName = commands[this.index];
@@ -218,6 +225,10 @@ public class DBInterpreter {
                 throw new IOException("Cannot input more <VALUES> than there are attributes in the table");
             }
 
+            if ((valuesInValueList.size() + 1) < currentTable.getNumberOfAttributes()){
+                throw new IOException("Cannot input less <VALUES> than there are attributes in the table");
+            }
+
             if (!valuesInValueList.isEmpty()){
                 currentTable.storeValueRow(valuesInValueList);
             } else {
@@ -232,6 +243,7 @@ public class DBInterpreter {
 
     }
 
+    // THROW ERROR WHEN : changing (updating) the ID of a record
     public void executeUpdate(){
         // "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>
 

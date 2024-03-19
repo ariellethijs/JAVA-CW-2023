@@ -67,7 +67,7 @@ public class DBServer {
         } catch (IOException e) {
             return ("[ERROR] " + e.getMessage());
         }
-        return "[OK]";
+        return "[OK]"; /// !!!!!!!! NEED TO ADD : [OK] for valid and successful queries, followed by the results of the query.
     }
 
     //  === Methods below handle networking aspects of the project - you will not need to change these ! ===

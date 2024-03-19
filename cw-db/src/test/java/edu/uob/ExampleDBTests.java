@@ -141,8 +141,12 @@ public class ExampleDBTests {
 
     @Test
     public void testCreateParse(){
-        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " + generateRandomName() + ";");
+        String databaseName = generateRandomName();
+
+        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " + databaseName + ";");
         assertTrue(testValidCreateDatabase.contains("[OK]"));
+
+        sendCommandToServer("USE " + databaseName + ";"); // So create tables will be valid
 
         String testValidCreateTable = sendCommandToServer("CREATE TABLE " + generateRandomName() + ";");
         assertTrue(testValidCreateTable.contains("[OK]"));
@@ -166,11 +170,18 @@ public class ExampleDBTests {
 
     @Test
     public void testDropParse(){
-        String testValidDropDatabase = sendCommandToServer("DROP DATABASE " +generateRandomName() + ";");
-        assertTrue(testValidDropDatabase.contains("[OK]"));
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
 
-        String testValidDropTable = sendCommandToServer("DROP TABLE " +generateRandomName() + ";");
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + ";");
+
+        String testValidDropTable = sendCommandToServer("DROP TABLE " +tableName + ";");
         assertTrue(testValidDropTable.contains("[OK]"));
+
+        String testValidDropDatabase = sendCommandToServer("DROP DATABASE " +databaseName + ";");
+        assertTrue(testValidDropDatabase.contains("[OK]"));
 
         String testInvalidDropDatabase = sendCommandToServer("DROP DATABASE;");
         assertTrue(testInvalidDropDatabase.contains("[ERROR]"));
@@ -181,21 +192,29 @@ public class ExampleDBTests {
 
     @Test
     public void testAlterParse(){
-        String testValidAlterAdd = sendCommandToServer("ALTER TABLE " +generateRandomName() + " ADD "
-                +generateRandomName() + ";");
+        String attributeName = generateRandomName();
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + ";");
+
+        String testValidAlterAdd = sendCommandToServer("ALTER TABLE " +tableName + " ADD "
+                +attributeName + ";");
         assertTrue(testValidAlterAdd.contains("[OK]"));
 
-        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +generateRandomName() + " DROP "
-                +generateRandomName() + ";");
+        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP "
+                +attributeName + ";");
         assertTrue(testValidAlterDrop.contains("[OK]"));
 
         // Missing alteration type
-        String testInvalidAlter = sendCommandToServer("ALTER TABLE " +generateRandomName() + " "
+        String testInvalidAlter = sendCommandToServer("ALTER TABLE " +tableName + " "
                 +generateRandomName() + ";");
         assertTrue(testInvalidAlter.contains("[ERROR]"));
 
         // Misspelled key word
-        String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " + generateRandomName() + " DRIP " +
+        String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DRIP " +
                 generateRandomName() + ";");
         assertTrue(testInvalidAlterDrop.contains("[ERROR]"));
     }
@@ -284,6 +303,9 @@ public class ExampleDBTests {
         String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " +randomName + ";");
         assertTrue(testValidCreateDatabase.contains("[OK]"));
 
+        String testInvalidCreateDatabase = sendCommandToServer("CREATE DATABASE database;"); // Attempt to use keyword as name
+        assertTrue(testInvalidCreateDatabase.contains("[ERROR]"));
+
         String testValidUseDatabase = sendCommandToServer("USE " +randomName + ";");
         assertTrue(testValidUseDatabase.contains("[OK]"));
 
@@ -337,22 +359,22 @@ public class ExampleDBTests {
         String databaseName = generateRandomName();
         String tableName = generateRandomName();
 
-        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        String testValidCreateDatabase = sendCommandToServer("CreAte DATabaSE " +databaseName + ";");
         assertTrue(testValidCreateDatabase.contains("[OK]"));
 
-        String testValidUseDatabase = sendCommandToServer("USE " +databaseName + ";");
+        String testValidUseDatabase = sendCommandToServer("Use " +databaseName + ";");
         assertTrue(testValidUseDatabase.contains("[OK]"));
 
         String testValidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " +tableName + " ( name, age );");
         assertTrue(testValidCreateTableWithAttributes.contains("[OK]"));
 
-        String testValidAlterAdd = sendCommandToServer("ALTER TABLE " +tableName + " ADD height;");
+        String testValidAlterAdd = sendCommandToServer("AlTER TaBLE " +tableName + " Add height;");
         assertTrue(testValidAlterAdd.contains("[OK]"));
 
         String testInvalidAlterAdd = sendCommandToServer("ALTER TABLE " +tableName + " ADD name;"); // Already exists !
         assertTrue(testInvalidAlterAdd.contains("[ERROR]"));
 
-        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP age;");
+        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DRoP age;");
         assertTrue(testValidAlterDrop.contains("[OK]"));
 
         String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP gender;"); // Doesn't exist !
