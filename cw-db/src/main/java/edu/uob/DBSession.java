@@ -101,11 +101,11 @@ public class DBSession {
             if (columnIndex == 0){
                 rowID = Integer.parseInt(value); // Find the ID of the row you're on
                 this.indexID = Math.max(this.indexID, rowID); // Store the ID index if it's higher than the current one
-            }
-            if (rowID < 0){
-                throw new IOException("id column is stored incorrectly in Table " +currentTable.getTableName());
+                if (rowID < 0) {
+                    throw new IOException("id column is stored incorrectly in Table " + currentTable.getTableName());
+                }
             } else {
-                currentTable.createValueFromString(currentTable.getAttributeNameFromIndex(columnIndex), value, rowID);
+                currentTable.createValueFromFile(columnIndex, value, rowID);
             }
             columnIndex++;
         }

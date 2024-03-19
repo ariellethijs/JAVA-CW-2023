@@ -109,8 +109,8 @@ public class ExampleDBTests {
         String[] returnedTokens1 = tokeniser.tokeniseInput(command).toArray(new String[0]);
         assertArrayEquals(expectedTokens, returnedTokens1);
 
-        command = "UPDATE   Employee  SET age =  35 WHERE name =   'John Doe';";
-        expectedTokens = new String[]{"UPDATE", "Employee", "SET", "age", "=", "35", "WHERE", "name", "=", "'John Doe'", ";"};
+        command = "UPDATE   Employee  SET age =  35 WHERE name !=   'John Doe';";
+        expectedTokens = new String[]{"UPDATE", "Employee", "SET", "age", "=", "35", "WHERE", "name", "!=", "'John Doe'", ";"};
         String[] returnedTokens2 = tokeniser.tokeniseInput(command).toArray(new String[0]);
         assertArrayEquals(expectedTokens, returnedTokens2);
 
@@ -122,9 +122,11 @@ public class ExampleDBTests {
 
     @Test
     public void testUseParse() {
+        String validDatabaseName = generateRandomName();
         String invalidName = generateRandomName() + "!&£*";
 
-        String validUse = sendCommandToServer("USE " + generateRandomName() + ";");
+        sendCommandToServer("CREATE DATABASE " +validDatabaseName + ";");
+        String validUse = sendCommandToServer("USE " + validDatabaseName + ";");
         assertTrue(validUse.contains("[OK]"));
 
         String testInvalidSpacing = sendCommandToServer("US E " + generateRandomName() + ";"); // Improper spacing in command
@@ -176,7 +178,6 @@ public class ExampleDBTests {
         String testInvalidDropTable = sendCommandToServer("DROP TALE " +generateRandomName() + ";");
         assertTrue(testInvalidDropTable.contains("[ERROR]"));
     }
-
 
     @Test
     public void testAlterParse(){
@@ -276,11 +277,6 @@ public class ExampleDBTests {
 //    }
 
 
-//    @Test
-//    public void testInterpretUse(){
-//
-//    }
-
     @Test
     public void testInterpretCreate(){
         String randomName = generateRandomName();
@@ -334,4 +330,57 @@ public class ExampleDBTests {
         String testUseDeletedDatabase = sendCommandToServer("USE " +databaseName + ";");
         assertTrue(testUseDeletedDatabase.contains("[ERROR]"));
     }
+
+    @Test
+    public void testInterpretAlter(){
+        // //  "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+
+        String testValidCreateDatabase = sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        assertTrue(testValidCreateDatabase.contains("[OK]"));
+
+        String testValidUseDatabase = sendCommandToServer("USE " +databaseName + ";");
+        assertTrue(testValidUseDatabase.contains("[OK]"));
+
+        String testValidCreateTableWithAttributes = sendCommandToServer("CREATE TABLE " +tableName + " ( name, age );");
+        assertTrue(testValidCreateTableWithAttributes.contains("[OK]"));
+
+        String testValidAlterAdd = sendCommandToServer("ALTER TABLE " +tableName + " ADD height;");
+        assertTrue(testValidAlterAdd.contains("[OK]"));
+
+        String testInvalidAlterAdd = sendCommandToServer("ALTER TABLE " +tableName + " ADD name;"); // Already exists !
+        assertTrue(testInvalidAlterAdd.contains("[ERROR]"));
+
+        String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP age;");
+        assertTrue(testValidAlterDrop.contains("[OK]"));
+
+        String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP gender;"); // Doesn't exist !
+        assertTrue(testInvalidAlterDrop.contains("[ERROR]"));
+    }
+
+    @Test
+    public void testInterpretInsert(){
+        // "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")"
+
+        // Create and use database & create table
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height );");
+
+        String validInsertValues = sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 45, 172);");
+        assertTrue(validInsertValues.contains("[OK]"));
+
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Sarah', 23, 121);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Amy', 30, 153);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, NULL);");
+
+        String testMoreValuesThanAttributes = sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Kevin', 32, 184, 'male');");
+        assertTrue(testMoreValuesThanAttributes.contains("[ERROR]"));
+
+    }
+
+
 }

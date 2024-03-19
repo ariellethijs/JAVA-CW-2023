@@ -18,18 +18,18 @@ public class Value extends Attribute {
 
     private float dataFloat;
 
-    public Value(String value, int iD, String attributeName, DataType type, DBSession current, Table parentTable) throws IOException{
+    public Value(int iD, String value, String attributeName, DataType type, DBSession current, Table parentTable) throws IOException{
         super(attributeName, current, type, parentTable);
         super.setDataType(type);
         this.currentSession = current;
-        this.correspondingAttribute = attributeName;
         this.correspondingID = iD;
+        this.correspondingAttribute = attributeName;
         this.dataType = type;
         this.dataAsString = value;
-        storeValue(value, type);
+        storeValueAsCorrectType(value, type);
     }
 
-    public void storeValue(String value, DataType type) throws IOException {
+    public void storeValueAsCorrectType(String value, DataType type) throws IOException {
         switch (type){
             case STRING -> {
                 setDataString(value);
@@ -55,6 +55,16 @@ public class Value extends Attribute {
                 throw new IOException("Invalid DataType for value");
             }
         }
+    }
+
+    @Override
+    public String getDataAsString(){
+        return this.dataAsString;
+    }
+
+
+    public DataType getValuesDataType(){
+        return this.dataType;
     }
 
     public void setDataString(String data){
