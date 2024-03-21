@@ -178,4 +178,15 @@ public class Table {
 
         writeAttributesAndValuesToFile();
     }
+
+    public void deleteRow(String idIndex) throws IOException {
+        int rowIndex = getRowIndexFromID(Integer.parseInt(idIndex));
+
+        for (ArrayList<Attribute> column : tableContents){
+            column.remove(rowIndex); // Remove from tableContents
+            Attribute parent = column.get(0);
+            parent.allValues.remove(rowIndex-1); // Remove from parent attributes values array
+        }
+    }
+
 }

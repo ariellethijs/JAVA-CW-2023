@@ -304,14 +304,6 @@ public class ExampleDBTests {
         assertTrue(testNestedConditions.contains("[OK]"));
     }
 
-//    public boolean testDeleteParse(){
-//
-//    }
-
-//    public boolean testJoinParse(){
-//
-//    }
-
     @Test
     public void testInterpretCreate(){
         String randomName = generateRandomName();
@@ -498,6 +490,34 @@ public class ExampleDBTests {
         String invalidUpdateOnNonExistentAttribute = sendCommandToServer("UPDATE " +tableName + " SET occupation = 'plumber', gender = 'male' WHERE (gender != null);");
         assertTrue(invalidUpdateOnNonExistentAttribute.contains("[ERROR]"));
     }
+
+    @Test
+    public void testInterpretDelete(){
+        // "DELETE " "FROM " [TableName] " WHERE " <Condition>
+
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " (name, age, height);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 45, 172);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Sarah', 23, 121);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Amy', 30, 152);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, 167);");
+
+        String validDelete = sendCommandToServer("DELETE FROM " +tableName + " WHERE name LIKE 'Amy';");
+        assertTrue(validDelete.contains("[OK]"));
+
+        String validDeleteMultipleConditions = sendCommandToServer("DELETE FROM " +tableName + " WHERE ((name == 'Keith') AND (age >= 45) AND (height LIKE 172));");
+        assertTrue(validDeleteMultipleConditions.contains("[OK]"));
+
+        String invalidDeleteNonExistentAttribute = sendCommandToServer("DELETE FROM " +tableName + " WHERE job LIKE 'Lawyer';");
+        assertTrue(invalidDeleteNonExistentAttribute.contains("[ERROR]"));
+
+        String invalidDeleteNonExistentTable = sendCommandToServer("DELETE FROM " +generateRandomName() + " WHERE job LIKE 'Lawyer';");
+        assertTrue(invalidDeleteNonExistentTable.contains("[ERROR]"));
+    }
+
 
 
 }

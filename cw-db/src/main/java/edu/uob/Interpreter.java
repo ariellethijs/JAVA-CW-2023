@@ -2,6 +2,7 @@ package edu.uob;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class Interpreter {
     private final String[] commands;
@@ -31,7 +32,7 @@ public class Interpreter {
             case "INSERT" -> executeInsert();
             case "SELECT" -> executeSelect();
             case "UPDATE" -> executeUpdate();
-//            case "DELETE" -> executeDelete();
+            case "DELETE" -> executeDelete();
 //            case "JOIN" -> executeJoin();
             default -> throw new IOException("Attempting to interpret unimplemented command");
         }
@@ -135,30 +136,20 @@ public class Interpreter {
         //  "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
         this.index = this.index+2; // Skip "ALTER " "TABLE " safely as already parsed
 
-        String tableName = commands[this.index];
+        Table currentTable = findCurrentTable("<ALTER> a table");
+
         // Find out which alteration type is desired
         int nextIndex = this.index+1;
         String alterationType = commands[nextIndex];
 
-        // Find the current database in use
-        Database currentDatabase = currentSession.getDatabaseInUse();
-        if (currentDatabase == null) {
-            throw new IOException("Cannot <ALTER> as no database is currently selected");
-        }
-
-        if (currentDatabase.tableExists(tableName)){
-            Table currentTable = currentDatabase.getTableByName(tableName);
-            if (alterationType.equalsIgnoreCase("ADD")){
-                this.index = nextIndex+1; // Skip past alteration type and execute
-                executeAlterAdd(currentTable);
-            } else if (alterationType.equalsIgnoreCase("DROP")){
-                this.index = nextIndex+1;
-                executeAlterDrop(currentTable);
-            } else {
-                throw new IOException("Invalid alteration type attempted as part of an <ALTER> command");
-            }
+        if (alterationType.equalsIgnoreCase("ADD")){
+            this.index = nextIndex+1; // Skip past alteration type and execute
+            executeAlterAdd(currentTable);
+        } else if (alterationType.equalsIgnoreCase("DROP")){
+            this.index = nextIndex+1;
+            executeAlterDrop(currentTable);
         } else {
-            throw new IOException("Attempting to <ALTER> a table which does not exist in current database");
+            throw new IOException("Invalid alteration type attempted as part of an <ALTER> command");
         }
     }
 
@@ -187,44 +178,38 @@ public class Interpreter {
     public void executeInsert() throws IOException {
         // "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")"
         this.index = this.index+2; // Safely skip "INSERT " "INTO " as parsed successfully
+        Table currentTable = findCurrentTable("<INSERT> into a table");
+        this.index = this.index+3; // Navigate to first value in list by skipping " VALUES" & opening bracket
 
-        // Find the current database in use
-        Database currentDatabase = currentSession.getDatabaseInUse();
-        if (currentDatabase == null) {
-            throw new IOException("Cannot <INSERT> into a table as no database is currently selected");
+        ArrayList<String> valuesInValueList = storeValuesInValueList(currentTable);
+
+        if (!valuesInValueList.isEmpty()){
+            currentTable.storeValueRow(valuesInValueList);
+        } else {
+            throw new IOException("Couldn't input values into table contents"); // For debugging replace later
         }
+    }
 
-        if (currentDatabase.tableExists(commands[this.index])){
-            Table currentTable = currentDatabase.getTableByName(commands[this.index]);
-            this.index = this.index+3; // Navigate to first value in list by skipping " VALUES" & opening bracket
-
-            ArrayList<String> valuesInValueList = new ArrayList<>();
-
-            while (!commands[this.index].equals(")")){
-                if (!commands[this.index].equals(",")){ // if not a comma, must be a value as already parsed
-                    if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\''){
-                        // If the value is a string literal, remove the quotes before storing
-                        commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
-                    }
-                    valuesInValueList.add(commands[this.index]);
+    public ArrayList<String> storeValuesInValueList(Table currentTable) throws IOException {
+        ArrayList<String> valuesInValueList = new ArrayList<>();
+        while (!commands[this.index].equals(")")){
+            if (!commands[this.index].equals(",")){ // if not a comma, must be a value as already parsed
+                if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\''){
+                    // If the value is a string literal, remove the quotes before storing
+                    commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
                 }
-                this.index++;
+                valuesInValueList.add(commands[this.index]);
             }
-
-            if ((valuesInValueList.size() + 1) > currentTable.getNumberOfAttributes()){
-                throw new IOException("Cannot input more <VALUES> than there are attributes in the table");
-            }
-
-            if ((valuesInValueList.size() + 1) < currentTable.getNumberOfAttributes()){
-                throw new IOException("Cannot input less <VALUES> than there are attributes in the table");
-            }
-
-            if (!valuesInValueList.isEmpty()){
-                currentTable.storeValueRow(valuesInValueList);
-            } else {
-                throw new IOException("Couldn't input values into table contents"); // For debugging replace later
-            }
+            this.index++;
         }
+
+        if ((valuesInValueList.size() + 1) > currentTable.getNumberOfAttributes()){
+            throw new IOException("Cannot input more <VALUES> than there are attributes in the table");
+        }
+        if ((valuesInValueList.size() + 1) < currentTable.getNumberOfAttributes()){
+            throw new IOException("Cannot input less <VALUES> than there are attributes in the table");
+        }
+        return valuesInValueList;
     }
 
     public String removeQuotesFromStringLiteral(String token){
@@ -241,7 +226,7 @@ public class Interpreter {
         }
 
         ArrayList<Attribute> selectedAttributes = selectAttributes(currentDatabase);
-        Table currentTable = currentDatabase.getTableByName(commands[this.index]);
+        Table currentTable = findCurrentTable("<SELECT> from table");
         int nextIndex = this.index+1;
 
         if (selectedAttributes.isEmpty()){
@@ -336,16 +321,7 @@ public class Interpreter {
     public void executeUpdate() throws IOException {
         // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         this.index++; // Skip past "UPDATE"
-        Database currentDatabase = currentSession.getDatabaseInUse();
-        if (currentDatabase == null) {
-            throw new IOException("Cannot <UPDATE> a table as no database is currently selected");
-        }
-        String tableName = commands[this.index];
-        if (!currentDatabase.tableExists(tableName)){
-            throw new IOException("Cannot <UPDATE> a table which does not exist");
-        }
-
-        Table currentTable = currentDatabase.getTableByName(tableName);
+        Table currentTable = findCurrentTable("<UPDATE> a table");
         this.index = this.index + 2; // Skip to <NameValueList>
         ArrayList<String> nameValueList = storeNameValueList();
         if (commands[this.index].equalsIgnoreCase("WHERE")){ this.index++; }
@@ -394,21 +370,24 @@ public class Interpreter {
 
     public void executeDelete() throws IOException {
         // "DELETE " "FROM " [TableName] " WHERE " <Condition>
-        // removes rows that match the given condition from an existing table
-        this.index++; // Skip past "DELETE"
+        this.index = this.index+2; // Skip past "DELETE" & "FROM"
+        Table currentTable = findCurrentTable("<DELETE> a table");
+        this.index = this.index+2; // Skip past "WHERE" safely as already parsed
 
-        Database currentDatabase = currentSession.getDatabaseInUse();
-        if (currentDatabase == null) {
-            throw new IOException("Cannot <DELETE> a table as no database is currently selected");
+        Attribute idColumnHeader = currentTable.getAttributeFromName("id");
+        // Take a copy of column to avoid concurrent mod exception when modifying tableValues in the loop
+        ArrayList<Value> idColumnToModify = new ArrayList<>(idColumnHeader.allValues);
+
+        ArrayList<String> allConditions = storeConditions();
+        ConditionProcessor conditionProcessor = new ConditionProcessor();
+
+        for (Value id : idColumnToModify) { // Check if each valueRow meets the conditions
+            if (conditionProcessor.checkRowMeetsConditions(allConditions, id, currentTable)){
+                currentTable.deleteRow(id.getDataAsString());
+            }
         }
-        String tableName = commands[this.index];
-        if (!currentDatabase.tableExists(tableName)){
-            throw new IOException("Cannot <DELETE> a table which does not exist");
-        }
-
-
-
     }
+
     public void executeJoin() throws IOException {
         //"JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
         // performs an inner join on two tables (returning all permutations of all matching records)
@@ -417,6 +396,19 @@ public class Interpreter {
         //                     selectedAttributes.remove(0); // // Remove the id attribute as a new one will be generated
         //                }
 
+    }
+
+    public Table findCurrentTable(String errorMessage) throws IOException {
+        Database currentDatabase = currentSession.getDatabaseInUse();
+        if (currentDatabase == null) {
+            throw new IOException("Cannot " +errorMessage + " as no database is currently selected");
+        }
+
+        String tableName = commands[this.index];
+        if (!currentDatabase.tableExists(tableName)) {
+            throw new IOException("Cannot " +errorMessage + " which does not exist");
+        }
+        return currentDatabase.getTableByName(tableName);
     }
 
 }
