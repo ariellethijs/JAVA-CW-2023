@@ -15,7 +15,9 @@ public class ConditionProcessor {
         ArrayList<Attribute> valueRow = new ArrayList<>();
 
         for (int colIndex = 0; colIndex < currentTable.tableContents.size(); colIndex++){
-            valueRow.add(currentTable.tableContents.get(colIndex).get(rowIndex)); // Add all the values in the same row
+            if (rowIndex < currentTable.tableContents.get(colIndex).size()){
+                valueRow.add(currentTable.tableContents.get(colIndex).get(rowIndex)); // Add all the values in the same row
+            }
         }
         return evaluateConditions(allConditions, valueRow);
     }

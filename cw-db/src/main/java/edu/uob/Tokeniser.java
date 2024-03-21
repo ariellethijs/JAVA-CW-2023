@@ -5,7 +5,9 @@ import java.util.Arrays;
 
 public class Tokeniser {
     String query;
-    String[] specialCharacters = {"(",")",",",";"};
+    String[] specialCharacters = {"(",")",",",";",};
+    // "==" | ">" | "<" | ">=" | "<=" | "!="
+    String[] comparators = {">=","<=","!=", "=="};
     ArrayList<String> tokens = new ArrayList<>();
 
     ArrayList<String> tokeniseInput(String inputQuery)
@@ -39,6 +41,13 @@ public class Tokeniser {
         for (String specialCharacter : specialCharacters) {
             input = input.replace(specialCharacter, " " + specialCharacter + " ");
         }
+
+        for (String comparator : comparators){
+            input = input.replace(comparator, " " + comparator + " ");
+        }
+
+        // Handle difference between tokenising "<" & ">" and "<=" & ">="
+        input = input.replaceAll("(?<=\\S)([<>])(?=\\S)", " $1 ");
         // Remove all double spaces (the previous replacements may have added some)
         // This is "blind" replacement - replacing if they exist, doing nothing if they don't
         while (input.contains("  ")){

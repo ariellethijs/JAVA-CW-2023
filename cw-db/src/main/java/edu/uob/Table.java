@@ -170,6 +170,22 @@ public class Table {
         int rowIndex = getRowIndexFromID(Integer.parseInt(idIndex));
         int attributeIndex = getAttributeIndexFromName(attributeName);
         // Update the appropriate value in table contents
+
+//        try {
+//            Attribute value = tableContents.get(attributeIndex).get(rowIndex);
+//        } catch (ArrayIndexOutOfBoundsException arrayIndexOutOfBoundsException){
+//            tableContents.get(attributeIndex).add(rowIndex, new Value(Integer.parseInt(idIndex), "", ""));
+//            // If 'updating' a previously unset value, add a puesdo value there as placeholder
+//        }
+
+        if (rowIndex >= tableContents.get(attributeIndex).size()){
+            // If 'updating' a previously unset value, add a puesdo value there as placeholder
+            Attribute parent = getAttributeFromName(attributeName);
+            Value placeholder = new Value(Integer.parseInt(idIndex), "", "");
+            tableContents.get(attributeIndex).add(rowIndex, placeholder);
+            parent.allValues.add(placeholder);
+        }
+
         tableContents.get(attributeIndex).get(rowIndex).setDataAsString(newValue);
 
         Attribute parent = getAttributeFromName(attributeName);

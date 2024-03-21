@@ -83,7 +83,6 @@ public class ExampleDBTests {
         server = new DBServer();
         sendCommandToServer("USE " + randomName + ";");
         String response = sendCommandToServer("SELECT * FROM marks;");
-        System.out.println(response);
         assertTrue(response.contains("Simon"), "Simon was added to a table and the server restarted - but Simon was not returned by SELECT *");
     }
 
@@ -103,6 +102,7 @@ public class ExampleDBTests {
     @Test
     public void testTokeniser(){
         Tokeniser tokeniser = new Tokeniser();
+
         // Tests for tokeniser
         String command = "INSERT   INTO Employee  VALUES (1,   'John Doe', 30);  ";
         String[] expectedTokens = { "INSERT", "INTO", "Employee", "VALUES", "(", "1", ",", "'John Doe'", ",", "30", ")", ";" };
@@ -205,7 +205,6 @@ public class ExampleDBTests {
         assertTrue(testValidAlterAdd.contains("[OK]"));
 
         String response = sendCommandToServer("SELECT * FROM " +tableName + ";");
-        System.out.println(response);
 
         String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP "
                 +attributeName + ";");
@@ -234,28 +233,21 @@ public class ExampleDBTests {
         sendCommandToServer("USE " +databaseName + ";");
         sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height );");
 
-        String testValidInsertSingleValue = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (45);");
-        assertTrue(testValidInsertSingleValue.contains("[OK]"));
-
-        String testValidInsertMultipleValues = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (" + validString +
-                ", TRUE, 45.37, 3, NULL);");
-        assertTrue(testValidInsertMultipleValues.contains("[OK]"));
-
         // No single quotes around string literal
-        String testInvalidString = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (" + invalidString +
+        String testInvalidString = sendCommandToServer("INSERT INTO " +tableName + " VALUES (" + invalidString +
                 ");");
         assertTrue(testInvalidString.contains("[ERROR]"));
 
         // Missing closing bracket
-        String testInvalidInsertBrackets = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES(a, 5.5;");
+        String testInvalidInsertBrackets = sendCommandToServer("INSERT INTO " +tableName + " VALUES(a, 5.5;");
         assertTrue(testInvalidInsertBrackets.contains("[ERROR]"));
 
         // Missing comma separating values
-        String testInvalidInsertCommas = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES(a 5, 17);");
+        String testInvalidInsertCommas = sendCommandToServer("INSERT INTO " +tableName +" VALUES(a 5, 17);");
         assertTrue(testInvalidInsertCommas.contains("[ERROR]"));
 
         // Multiple decimal points in float literal
-        String testInvalidInsertFloat = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES( 5.1.7 );");
+        String testInvalidInsertFloat = sendCommandToServer("INSERT INTO " +tableName + " VALUES( 5.1.7 );");
         assertTrue(testInvalidInsertFloat.contains("[ERROR]"));
 
     }
@@ -518,6 +510,49 @@ public class ExampleDBTests {
         assertTrue(invalidDeleteNonExistentTable.contains("[ERROR]"));
     }
 
+    @Test
+    public void testTranscript(){
+        String testCreateDB = sendCommandToServer("CREATE DATABASE markbook;");
+        assertTrue(testCreateDB.contains("[OK]"));
+        String testUse = sendCommandToServer("USE markbook;");
+        assertTrue(testUse.contains("[OK]"));
+        String testCreateTable = sendCommandToServer("CREATE TABLE marks (name, mark, pass);");
+        assertTrue(testCreateTable.contains("[OK]"));
+        String testInsert1 = sendCommandToServer("INSERT INTO marks VALUES ('Simon', 65, TRUE);");
+        assertTrue(testInsert1.contains("[OK]"));
+        String testInsert2 = sendCommandToServer("INSERT INTO marks VALUES ('Sion', 55, TRUE);");
+        assertTrue(testInsert2.contains("[OK]"));
+        String testInsert3 = sendCommandToServer("INSERT INTO marks VALUES ('Rob', 35, FALSE);");
+        assertTrue(testInsert3.contains("[OK]"));
+        String testInsert4 = sendCommandToServer("INSERT INTO marks VALUES ('Chris', 20, FALSE);");
+        assertTrue(testInsert4.contains("[OK]"));
+        String testSelectAll = sendCommandToServer("SELECT * FROM marks;");
+        assertTrue(testSelectAll.contains("[OK]"));
+        String testSelect1 = sendCommandToServer("SELECT * FROM marks WHERE name != 'Sion';");
+        assertTrue(testSelect1.contains("[OK]"));
+        String testSelect2 = sendCommandToServer("SELECT * FROM marks WHERE pass == TRUE;");
+        assertTrue(testSelect2.contains("[OK]"));
+        String testUpdate1 = sendCommandToServer("UPDATE marks SET mark = 38 WHERE name == 'Chris';");
+        assertTrue(testUpdate1.contains("[OK]"));
+        String testDelete1 = sendCommandToServer("DELETE FROM marks WHERE name == 'Sion';");
+        assertTrue(testDelete1.contains("[OK]"));
+        String testSelect3 = sendCommandToServer("SELECT * FROM marks WHERE (pass == FALSE) AND (mark > 35);");
+        assertTrue(testSelect3.contains("[OK]"));
+        String testSelect4 = sendCommandToServer("SELECT * FROM marks WHERE name LIKE 'i';");
+        assertTrue(testSelect4.contains("[OK]"));
+        String testSelect5 = sendCommandToServer("SELECT id FROM marks WHERE pass == FALSE;");
+        assertTrue(testSelect5.contains("[OK]"));
+        String testSelect6 = sendCommandToServer("SELECT name FROM marks WHERE mark>60;");
+        assertTrue(testSelect6.contains("[OK]"));
+        String testDelete2 = sendCommandToServer("DELETE FROM marks WHERE mark<40;");
+        assertTrue(testDelete2.contains("[OK]"));
+        String testAlter1 = sendCommandToServer("ALTER TABLE marks ADD age;");
+        assertTrue(testAlter1.contains("[OK]"));
+        String testUpdate2 = sendCommandToServer("UPDATE marks SET age = 35 WHERE name == 'Simon';");
+        assertTrue(testUpdate2.contains("[OK]"));
+        String testAlter2 = sendCommandToServer("ALTER TABLE marks DROP pass;");
+        assertTrue(testAlter2.contains("[OK]"));
+    }
 
 
 }
