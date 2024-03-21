@@ -4,14 +4,20 @@ import java.io.IOException;
 import java.util.ArrayList;
 
 public class DBInterpreter {
-    private String[] commands;
+    private final String[] commands;
     private int index;
     private DBSession currentSession;
+
+    public boolean responseRequired;
+    public ArrayList<ArrayList<String>> responseTable;
 
     public DBInterpreter(String[] commandTokens, DBSession current) {
         this.currentSession = current;
         this.commands = commandTokens;
         this.index = 0;
+
+        this.responseRequired = false;
+        this.responseTable  = new ArrayList<>();
     }
 
     public void interpretCommand(int commandStartIndex) throws IOException {
@@ -19,36 +25,16 @@ public class DBInterpreter {
         String uppercaseCommand = commands[this.index].toUpperCase();
 
         switch (uppercaseCommand) {
-            case "USE" -> {
-                executeUse();
-            }
-            case "CREATE" -> {
-                executeCreate();
-            }
-            case "DROP" -> {
-                executeDrop();
-            }
-            case "ALTER" -> {
-                executeAlter();
-            }
-            case "INSERT" -> {
-                executeInsert();
-            }
-//            case "SELECT" -> {
-//                executeSelect();
-//            }
-//            case "UPDATE" -> {
-//                executeUpdate();
-//            }
-//            case "DELETE" -> {
-//                executeDelete();
-//            }
-//            case "JOIN" -> {
-//                executeJoin();
-//            }
-            default -> {
-                throw new IOException("Attempting to interpret unimplemented command");
-            }
+            case "USE" -> executeUse();
+            case "CREATE" -> executeCreate();
+            case "DROP" -> executeDrop();
+            case "ALTER" -> executeAlter();
+            case "INSERT" -> executeInsert();
+            case "SELECT" -> executeSelect();
+//            case "UPDATE" -> executeUpdate();
+//            case "DELETE" -> executeDelete();
+//            case "JOIN" -> executeJoin();
+            default -> throw new IOException("Attempting to interpret unimplemented command");
         }
     }
 
@@ -100,7 +86,7 @@ public class DBInterpreter {
                 this.index++;
                 while (!commands[this.index].equals(")")){
                     if (!commands[this.index].equals(",")){ // Skip over the commas in attribute list
-                        currentTable.createAttribute(commands[this.index], DataType.UNDEFINED);
+                        currentTable.createAttribute(commands[this.index]);
                     }
                     this.index++;
                 }
@@ -180,7 +166,7 @@ public class DBInterpreter {
     public void executeAlterAdd(Table currentTable) throws IOException {
         String attributeName = commands[this.index];
         if (!currentTable.attributeExists(attributeName)){
-            currentTable.createAttribute(attributeName, DataType.UNDEFINED);
+            currentTable.createAttribute(attributeName);
         } else {
             throw new IOException("Cannot <ALTER> a table by adding an attribute which already exist");
         }
@@ -210,12 +196,16 @@ public class DBInterpreter {
 
         if (currentDatabase.tableExists(commands[this.index])){
             Table currentTable = currentDatabase.getTableByName(commands[this.index]);
-            this.index = this.index+3; // Navigate to first value in list by skipping " VALUES" "("
+            this.index = this.index+3; // Navigate to first value in list by skipping " VALUES" & opening bracket
 
             ArrayList<String> valuesInValueList = new ArrayList<>();
 
             while (!commands[this.index].equals(")")){
                 if (!commands[this.index].equals(",")){ // if not a comma, must be a value as already parsed
+                    if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\''){
+                        // If the value is a string literal, remove the quotes before storing
+                        commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
+                    }
                     valuesInValueList.add(commands[this.index]);
                 }
                 this.index++;
@@ -237,26 +227,146 @@ public class DBInterpreter {
         }
     }
 
-    public void executeSelect(){
-        //  "SELECT " <WildAttribList> " FROM " [TableName] | "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+    public String removeQuotesFromStringLiteral(String token){
+        return token.substring(1, token.length() - 1);
+    }
 
+    public void executeSelect() throws IOException {
+        this.index++; // Skip "SELECT "
+        ResponseTableGenerator responseGenerator = new ResponseTableGenerator(currentSession);
 
+        Database currentDatabase = currentSession.getDatabaseInUse();
+        if (currentDatabase == null) {
+            throw new IOException("Cannot <SELECT> from tables as no database is currently selected");
+        }
+
+        ArrayList<Attribute> selectedAttributes = selectAttributes(currentDatabase);
+        Table currentTable = currentDatabase.getTableByName(commands[this.index]);
+        int nextIndex = this.index+1;
+
+        if (selectedAttributes.isEmpty()){
+            throw new IOException("No valid attributes selected"); // FOR DEBUGGING DELETE LATER
+        } else if (commands[nextIndex].equalsIgnoreCase("WHERE")){
+            this.index = nextIndex+1; // Skip past where
+            ArrayList<ArrayList<Attribute>> conditionedValues = conditionSelectedAttributes(selectedAttributes, currentTable);
+            this.responseRequired = true;
+            this.responseTable = responseGenerator.createConditionedResponseTable(conditionedValues, false);
+        } else {
+            this.responseRequired = true;
+            this.responseTable = responseGenerator.createUnconditionedResponseTable(selectedAttributes, false);
+        }
+    }
+
+    public ArrayList<Attribute> selectAttributes(Database currentDatabase) throws IOException {
+        boolean selectAll = false;
+
+        // Store wild attribute list
+        ArrayList<String> wildAttributeList = new ArrayList<>();
+        while (!commands[this.index].equalsIgnoreCase("FROM")){
+            if (commands[this.index].equals("*")){
+                selectAll = true; // Mark a select all command for simplicity
+                this.index++;
+            } else if (commands[this.index].equals(",")){
+                this.index++; // Skip commas
+            } else {
+                wildAttributeList.add(commands[this.index]);
+                this.index++;
+            }
+        }
+        this.index++; // skip past "FROM"
+
+        ArrayList<Attribute> selectedAttributes = new ArrayList<>();
+        if (currentDatabase.tableExists(commands[this.index])){
+            Table currentTable = currentDatabase.getTableByName(commands[this.index]);
+
+            if (selectAll){
+                selectedAttributes = currentTable.getAllAttributes();
+            } else {
+                for (String attributeName : wildAttributeList){
+                    if (currentTable.attributeExists(attributeName)){
+                        selectedAttributes.add(currentTable.getAttributeFromName(attributeName));
+                    } else {
+                        throw new IOException("Cannot <SELECT> an attribute that does not exist");
+                    }
+                }
+                return selectedAttributes;
+            }
+        } else {
+            throw new IOException("Cannot <SELECT> from a table that does not exist");
+        }
+        return selectedAttributes; // Should never reach this but just to silence compiler
+    }
+
+    public ArrayList<ArrayList<Attribute>> conditionSelectedAttributes(ArrayList<Attribute> selectedAttributes, Table currentTable) throws IOException {
+        ArrayList<String> allConditions = storeConditions();
+        ArrayList<ArrayList<Attribute>> conditionedValues = new ArrayList<>();
+        conditionedValues.add(selectedAttributes); // Add the attributes to the top row of the response table
+
+        for (Attribute attribute : selectedAttributes){
+            int rowIndex = 1; // Reset to 1 (first row of values) for each column
+            for (Value value : attribute.allValues){
+                ConditionProcessor conditionProcessor = new ConditionProcessor();
+
+                if (conditionProcessor.checkRowMeetsConditions(allConditions, value, currentTable)){
+                    if (rowIndex >= conditionedValues.size()){ // Add a new row to arraylist if necessary
+                        ArrayList<Attribute> row = new ArrayList<>();
+                        conditionedValues.add(row);
+                    }
+                    conditionedValues.get(rowIndex).add(value);
+                    rowIndex++; // increment for each value in attribute that is selected and stored
+                }
+            }
+        }
+        return conditionedValues;
+    }
+
+    public ArrayList<String> storeConditions(){
+        ArrayList<String> allConditions = new ArrayList<>();
+
+        while (!commands[this.index].equals(";")){
+            if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\'') {
+                // If the value is a string literal, remove the quotes before storing
+                commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
+            }
+            allConditions.add(commands[this.index]);
+            this.index++;
+        }
+        return allConditions;
     }
 
     // THROW ERROR WHEN : changing (updating) the ID of a record
-    public void executeUpdate(){
-        // "UPDATE " [TableName] " SET " <NameValueList> " WHERE " <Condition>
+    // [TableName] " SET " <NameValueList> " WHERE " <Condition>
+    // changes the existing data contained within a table
+    public void executeUpdate() throws IOException { // Need to test parsing before implementing this
+        this.index++; // Skip past "UPDATE"
+
+        Database currentDatabase = currentSession.getDatabaseInUse();
+        if (currentDatabase == null) {
+            throw new IOException("Cannot <UPDATE> a table as no database is currently selected");
+        }
+        String tableName = commands[this.index];
+        if (currentDatabase.tableExists(tableName)){
+            this.index++;
+        } else {
+            throw new IOException("Cannot <UPDATE> a table which does not exist");
+        }
 
     }
 
-
-    public void executeDelete(){
+    public void executeDelete() throws IOException {
         // "DELETE " "FROM " [TableName] " WHERE " <Condition>
+        // removes rows that match the given condition from an existing table
 
     }
-    public void executeJoin(){
+    public void executeJoin() throws IOException {
         //"JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
+        // performs an inner join on two tables (returning all permutations of all matching records)
+
+        //                if (selectedAttributes.get(0).getAttributeName().equalsIgnoreCase("id")){
+        //                     selectedAttributes.remove(0); // // Remove the id attribute as a new one will be generated
+        //                }
 
     }
 
 }
+

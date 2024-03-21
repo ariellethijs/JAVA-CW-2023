@@ -204,6 +204,9 @@ public class ExampleDBTests {
                 +attributeName + ";");
         assertTrue(testValidAlterAdd.contains("[OK]"));
 
+        String response = sendCommandToServer("SELECT * FROM " +tableName + ";");
+        System.out.println(response);
+
         String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP "
                 +attributeName + ";");
         assertTrue(testValidAlterDrop.contains("[OK]"));
@@ -223,6 +226,13 @@ public class ExampleDBTests {
     public void testInsertParse(){
         String validString = '\'' + generateRandomName() + '\'';
         String invalidString = generateRandomName() + '\''; // Missing opening '
+
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height );");
 
         String testValidInsertSingleValue = sendCommandToServer("INSERT INTO " + generateRandomName() + " VALUES (45);");
         assertTrue(testValidInsertSingleValue.contains("[OK]"));
@@ -257,29 +267,40 @@ public class ExampleDBTests {
         // <WildAttribList>  ::=  <AttributeList> | "*"
         // <AttributeList>   ::=  [AttributeName] | [AttributeName] "," <AttributeList>
 
-//         "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> |
-//         "(" [AttributeName] <Comparator> [Value] ")" |  [AttributeName] <Comparator> [Value]
+        // "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> |
+        // "(" [AttributeName] <Comparator> [Value] ")" |  [AttributeName] <Comparator> [Value]
 
-        String testValidSelectSingleAttribute = sendCommandToServer("SELECT name FROM table1;");
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height );");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 45, 172);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Sarah', 23, 121);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Amy', 30, 153);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, 160);");
+
+        String testValidSelectSingleAttribute = sendCommandToServer("SELECT name FROM " +tableName + ";");
         assertTrue(testValidSelectSingleAttribute.contains("[OK]"));
 
-        String testValidSelectAll = sendCommandToServer("SELECT * FROM " +generateRandomName() + ";");
+        String testValidSelectAll = sendCommandToServer("SELECT * FROM " +tableName + ";");
         assertTrue(testValidSelectAll.contains("[OK]"));
 
-        String testValidSelectMultipleAttributes = sendCommandToServer("SELECT name, age FROM " + generateRandomName() + ";");
+        String testValidSelectMultipleAttributes = sendCommandToServer("SELECT name, age FROM " +tableName + ";");
         assertTrue(testValidSelectMultipleAttributes.contains("[OK]"));
 
-        String testValidSelectWhereCondition = sendCommandToServer("SELECT name FROM " + generateRandomName() +
+        String testValidSelectWhereCondition = sendCommandToServer("SELECT name FROM " +tableName +
                 " WHERE age >= 20;");
         assertTrue(testValidSelectWhereCondition.contains("[OK]"));
 
-        String testMissingComparator = sendCommandToServer("SELECT name FROM " +generateRandomName() + " WHERE age 20;");
+        String testMissingComparator = sendCommandToServer("SELECT name FROM " +tableName + " WHERE age 20;");
         assertTrue(testMissingComparator.contains("[ERROR]"));
 
-        String testMissingAttribute = sendCommandToServer("SELECT FROM " +generateRandomName() + " WHERE age == 20;");
+        String testMissingAttribute = sendCommandToServer("SELECT FROM " +tableName + " WHERE age == 20;");
         assertTrue(testMissingAttribute.contains("[ERROR]"));
 
-        String testNestedConditions = sendCommandToServer("SELECT name FROM table WHERE ((name == 'Barry') AND (age <= 40));");
+        String testNestedConditions = sendCommandToServer("SELECT * FROM " +tableName + " WHERE ((name == 'Keith') AND (age <= 40));");
         assertTrue(testNestedConditions.contains("[OK]"));
     }
 
@@ -294,7 +315,6 @@ public class ExampleDBTests {
 //    public boolean testJoinParse(){
 //
 //    }
-
 
     @Test
     public void testInterpretCreate(){
@@ -404,5 +424,53 @@ public class ExampleDBTests {
 
     }
 
+    @Test
+    public void testInterpretSelect(){
+        // "SELECT " <WildAttribList> " FROM " [TableName] |
+        // "SELECT " <WildAttribList> " FROM " [TableName] " WHERE " <Condition>
+
+        //  <AttributeList> | "*"
+        //  [AttributeName] | [AttributeName] "," <AttributeList>
+
+        // "(" <Condition> <BoolOperator> <Condition> ")" | <Condition> <BoolOperator> <Condition> | "(" [AttributeName] <Comparator> [Value] ")" | [AttributeName] <Comparator> [Value]
+        // <BoolOperator>    ::= "AND" | "OR"
+        // <Comparator>      ::=  "==" | ">" | "<" | ">=" | "<=" | "!=" | " LIKE "
+
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height );");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 45, 172);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Sarah', 23, 121);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Amy', 30, 153);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, 160);");
+
+        String validSelectAll = sendCommandToServer("SELECT * FROM " +tableName + ";");
+        System.out.println(validSelectAll);
+        assertTrue(validSelectAll.contains("[OK]"));
+
+        String validSelectSome = sendCommandToServer("SELECT name, age FROM " +tableName + ";");
+        System.out.println(validSelectSome);
+        assertTrue(validSelectSome.contains("[OK]"));
+
+        String validSelectOne = sendCommandToServer("SELECT age FROM " +tableName + ";");
+        System.out.println(validSelectOne);
+        assertTrue(validSelectOne.contains("[OK]"));
+
+        String invalidSelectOne = sendCommandToServer("SELECT gender FROM " +tableName + ";");
+        assertTrue(invalidSelectOne.contains("[ERROR]"));
+
+        String validConditionedSelectSome = sendCommandToServer("SELECT id, name FROM " +tableName + " WHERE age <= 34;");
+        System.out.println(validConditionedSelectSome);
+        assertTrue(validConditionedSelectSome.contains("[OK]"));
+
+        String validNestedConditionSelect = sendCommandToServer("SELECT id, name FROM " +tableName + " WHERE (age < 30 OR age > 40) AND height > 150;");
+        System.out.println(validNestedConditionSelect);
+        assertTrue(validNestedConditionSelect.contains("[OK]"));
+
+        String validSelectHeadersOnly = sendCommandToServer("SELECT * FROM " +tableName + " WHERE age <= 10;");
+        assertTrue(validSelectHeadersOnly.contains("[OK]"));
+    }
 
 }

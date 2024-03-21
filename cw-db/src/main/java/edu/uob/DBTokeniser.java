@@ -6,11 +6,11 @@ import java.util.Arrays;
 public class DBTokeniser {
     String query;
     String[] specialCharacters = {"(",")",",",";"};
-    ArrayList<String> tokens = new ArrayList<String>();
+    ArrayList<String> tokens = new ArrayList<>();
 
     ArrayList<String> tokeniseInput(String inputQuery)
     {
-        tokens = new ArrayList<String>();
+        tokens = new ArrayList<>();
         this.query = inputQuery;
         // Remove any whitespace at the beginning and end of the query
         this.query = this.query.trim();
@@ -41,7 +41,9 @@ public class DBTokeniser {
         }
         // Remove all double spaces (the previous replacements may have added some)
         // This is "blind" replacement - replacing if they exist, doing nothing if they don't
-        while (input.contains("  ")) input = input.replaceAll("  ", " ");
+        while (input.contains("  ")){
+            input = input.replaceAll("  ", " ");
+        }
         // Again, remove any whitespace from the beginning and end that might have been introduced
         input = input.trim();
         // Finally split on the space char (since there will now ALWAYS be a space between tokens)

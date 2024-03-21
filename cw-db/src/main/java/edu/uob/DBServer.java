@@ -67,7 +67,25 @@ public class DBServer {
         } catch (IOException e) {
             return ("[ERROR] " + e.getMessage());
         }
-        return "[OK]"; /// !!!!!!!! NEED TO ADD : [OK] for valid and successful queries, followed by the results of the query.
+
+        if (interpreter.responseRequired){
+            String responseTableAsString = convertResponseTableToString(interpreter.responseTable);
+            return "[OK]" + "\n" + responseTableAsString;
+        } else {
+            return "[OK]";
+        }
+    }
+
+    public String convertResponseTableToString(ArrayList<ArrayList<String>> responseTable){
+        StringBuilder stringBuilder = new StringBuilder();
+
+        for (ArrayList<String> row : responseTable){
+            for (String value : row){
+                stringBuilder.append(value).append("\t");
+            }
+            stringBuilder.append("\n");
+        }
+        return stringBuilder.toString();
     }
 
     //  === Methods below handle networking aspects of the project - you will not need to change these ! ===

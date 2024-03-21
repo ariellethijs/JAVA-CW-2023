@@ -30,8 +30,7 @@ public class DBParser {
         while (this.index < commands.length && !commands[this.index].equals(";")){
             int commandStartIndex = this.index;
             if (parseCommand()) {
-                validCommandStartingIndexes.add(commandStartIndex);
-
+                validCommandStartingIndexes.add(commandStartIndex); // Add the start indexes of all valid commands for interpreter
             } else {
                 throw new IOException("Invalid command type");
             }
@@ -77,15 +76,12 @@ public class DBParser {
             case "JOIN" -> {
                 return parseJoin();
             }
-            default -> {
-                throw new IOException("Invalid command type");
-            }
+            default -> throw new IOException("Invalid command type");
         }
     }
 
     public boolean parseUse() throws IOException {
         // "USE " [DatabaseName]
-        int commandStartIndex = this.index;
         this.index++;
         if (parsePlainText()) { // [DatabaseName] == plainText
             this.index++;
@@ -332,7 +328,7 @@ public class DBParser {
         // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
 
         if (isKeyword()){
-            throw new IOException("Cannot use KEYWORD as a [TableName] || [AttributeName] || [DatabaseName]");
+            throw new IOException("Cannot use KEYWORD " +commands[this.index] + " as a [TableName] || [AttributeName] || [DatabaseName]");
         } else {
             for (char c : commands[this.index].toCharArray()){
                 if (!(parseDigit(c) || parseLetter(c))){
@@ -343,7 +339,7 @@ public class DBParser {
         return true;
     }
 
-    public boolean isKeyword() throws IOException {
+    public boolean isKeyword() {
         for (String keyword : this.sqlKeywords){
             if (commands[this.index].equalsIgnoreCase(keyword)){
                 return true;
@@ -399,7 +395,7 @@ public class DBParser {
 
     boolean containsAtLeastOneValue = false;
 
-    public boolean parseValueList() throws IOException {
+    public boolean parseValueList() {
         // [Value] | [Value] "," <ValueList>
         if (containsAtLeastOneValue && commands[this.index].equals(")")){
             return true;
@@ -421,17 +417,17 @@ public class DBParser {
 
     public boolean parseDigitSequence(){
         // [Digit] | [Digit] [DigitSequence]
-        int decimalCount = 0; // Cannot be more than one decimal place in float
+        int decimalCount = 0;
 
         for (char c : commands[this.index].toCharArray()){
             if (c == '.') {
                 decimalCount++;
-                if (decimalCount > 1) {
+                if (decimalCount > 1) { // Cannot be more than one decimal place in float
                     return false;
                 }
             }
 
-            if (!(parseDigit(c)) && c != '.'){
+            if (!(parseDigit(c)) && c != '.' && c != '+' && c != '-'){
                 return false;
             }
         }
@@ -440,13 +436,13 @@ public class DBParser {
 
     public boolean parseIntegerLiteral(){
         // [DigitSequence] | "-" [DigitSequence] | "+" [DigitSequence]
-        if (plusOrMinus()){ this.index++; }
+        //if (plusOrMinus()){ this.index++; }
         return parseDigitSequence();
     }
 
     public boolean parseFloatLiteral(){
         // [DigitSequence] "." [DigitSequence] | "-" [DigitSequence] "." [DigitSequence] | "+" [DigitSequence] "." [DigitSequence]
-        if (plusOrMinus()){ this.index++; }
+        //if (plusOrMinus()){ this.index++; }
         return parseDigitSequence();
     }
 
@@ -546,10 +542,13 @@ public class DBParser {
                 }
             } else if (unbracketedCondition()) {
                 this.index++;
-                if (commands[this.index].equals(")")) { closingBracketCount++; }
-                int nextIndex = this.index + 1;
-                if (parseBoolOperator(commands[nextIndex])) {
-                    this.index = nextIndex +1;
+                if ((openingBracketCount - closingBracketCount == 0) && commands[this.index].equals(";")){ return true; }
+                if (commands[this.index].equals(")")) {
+                    closingBracketCount++;
+                    this.index++; // Skip past closing bracket
+                }
+                if (parseBoolOperator(commands[this.index])) {
+                    this.index++;
                     return parseBracketedCondition(openingBracketCount, closingBracketCount);
                 }
             }
@@ -587,25 +586,5 @@ public class DBParser {
         }
         return false;
     }
-
-    public DataType findDataTypeOfValue(){
-        DataType valueDataType = DataType.UNDEFINED;
-
-        if (parseBooleanLiteral()) {
-            valueDataType = DataType.BOOLEAN;
-        }
-        if (parseFloatLiteral()){
-            valueDataType = DataType.FLOAT;
-        }
-        if (parseIntegerLiteral()){
-            valueDataType = DataType.INTEGER;
-        }
-        if (parseStringLiteral()){
-            valueDataType = DataType.STRING;
-        }
-        return valueDataType;
-    }
-
-
 
 }

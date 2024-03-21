@@ -1,13 +1,10 @@
 package edu.uob;
-
-import java.awt.image.DataBufferByte;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Iterator;
 
 public class DBSession {
     ArrayList<Database> allDatabases;
@@ -21,7 +18,6 @@ public class DBSession {
     int indexID;
 
     public DBSession(String folderPath) throws IOException {
-        this.indexID = 0;
         this.storageFolderPath = folderPath;
         databaseInUse = new Database("initializer", this);
         databaseIsInUse = false;
@@ -90,7 +86,7 @@ public class DBSession {
 
     public void storeAttributesFromFile(String[] attributes, Table currentTable) throws IOException {
         for (String attributeName : attributes){
-            currentTable.createAttribute(attributeName, DataType.UNDEFINED);
+            currentTable.createAttribute(attributeName);
         }
     }
 
@@ -100,7 +96,6 @@ public class DBSession {
         for (String value : values){
             if (columnIndex == 0){
                 rowID = Integer.parseInt(value); // Find the ID of the row you're on
-                this.indexID = Math.max(this.indexID, rowID); // Store the ID index if it's higher than the current one
                 if (rowID < 0) {
                     throw new IOException("id column is stored incorrectly in Table " + currentTable.getTableName());
                 }
@@ -146,7 +141,7 @@ public class DBSession {
         this.indexID++;
     }
 
-    public Database createDatabase(String dbName) throws IOException {
+    public Database createDatabase(String dbName) {
         Database newDB = new Database(dbName, this);
         allDatabases.add(newDB);
         return newDB;

@@ -1,6 +1,5 @@
 package edu.uob;
 
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -17,12 +16,15 @@ public class Table {
 
     File tableFile;
 
-    public Table(String tableName, DBSession current, Database parentDatabase) throws IOException {
+    int indexID;
+
+    public Table(String tableName, DBSession current, Database parentDatabase) {
+        this.indexID = 1; // First index for the table
         this.name = tableName;
         this.currentSession = current;
         this.parent = parentDatabase;
         tableContents = new ArrayList<>();
-        createAttribute("id", DataType.INTEGER); // Add the id column to table
+        createAttribute("id"); // Add the id column to table
     }
 
     public String getTableName(){
@@ -33,49 +35,51 @@ public class Table {
         return this.tableContents.size();
     }
 
-    public void createAttribute(String attributeName, DataType type) throws IOException {
+    public ArrayList<Attribute> getAllAttributes(){
+        ArrayList<Attribute> allAttributes = new ArrayList<>();
+
+        for (ArrayList<Attribute> column : tableContents) {
+            allAttributes.add(column.get(0)); // Attributes are the first item in column arraylists
+        }
+        return allAttributes;
+    }
+
+    public void createAttribute(String attributeName) {
         ArrayList<Attribute> attributeColumn = new ArrayList<>(); // Add a column for each attribute
-        attributeColumn.add(new Attribute(attributeName, currentSession, type, this));
+        attributeColumn.add(new Attribute(attributeName, this));
         tableContents.add(attributeColumn);
     }
 
     public void storeValueRow(ArrayList<String> values) throws IOException {
-        int currentIndexID = currentSession.getIndexID();
-        currentSession.incrementIndexID(); // Increment so next use will be next index
+        int currentIndexID = this.indexID;
+        this.indexID++;
 
         // Add the id value before processing other values:
-        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id", DataType.INTEGER, currentSession, this);
+        Attribute idAttribute = getAttributeFromName("id");
+        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id", this);
+        idAttribute.addValue(idValue);
         tableContents.get(0).add(idValue);
 
         for (String value : values){
             int columnIndex = values.indexOf(value) + 1; // Add one to account for id column at start of each row
             String attributeName = getAttributeNameFromIndex(columnIndex); // Get corresponding attribute from value index
-            Value newValue = new Value(currentIndexID, value, attributeName, DataType.UNDEFINED, currentSession, this);
+            Attribute parent = getAttributeFromName(attributeName); // Get parent attribute
+
+            Value newValue = new Value(currentIndexID, value, attributeName, this);
+            parent.allValues.add(newValue); // Add the value to its corresponding attributes ArrayList
             tableContents.get(columnIndex).add(newValue);
         }
         writeAttributesAndValuesToFile(); // Overwrite the file with the new values
     }
 
-    // Only necessary for conditional queries i think?
-//    public boolean valuesInLineWithAttributesDataType(String attributeName, DataType valueDataType){
-//        if (attributeExists(attributeName)){
-//            Attribute attribute = getAttributeFromName(attributeName);
-//            return ((attribute.dataType == DataType.UNDEFINED) || (attribute.dataType == valueDataType));
-//        } else {
-//            return false;
-//        }
-//    }
 
     public void createValueFromFile(int attributeIndex, String value, int idIndex) throws IOException {
-        // Parse the value to try and determine its DataType
-        String[] valueAsArray = new String[]{value, " "}; // Extra buffer to avoid going out of bounds
-        DBParser valueParser = new DBParser(valueAsArray);
-        DataType valueDataType = valueParser.findDataTypeOfValue(); // Will return UNDEFINED if still uncertain
-
         String attributeName = getAttributeNameFromIndex(attributeIndex);
+        Attribute parent = getAttributeFromName(attributeName);
 
-        // Create a new value and
-        Value newValue = new Value(idIndex, value, attributeName, valueDataType, currentSession, this);
+        // Create a new value and store it in tableContents & parent attributes ArrayList
+        Value newValue = new Value(idIndex, value, attributeName, this);
+        parent.allValues.add(newValue);
         tableContents.get(attributeIndex).add(newValue);  // Add as the next row in file
     }
 
@@ -133,6 +137,7 @@ public class Table {
 
     public void writeAttributesToFile() throws IOException {
         FileWriter fileWriter = new FileWriter(this.tableFile);
+
         for (ArrayList<Attribute> tableContent : tableContents) {
             for (Attribute attribute : tableContent) {
                 fileWriter.write(attribute.getAttributeName() + "\t");
@@ -155,14 +160,17 @@ public class Table {
         fileWriter.close();
     }
 
-//    public int getRowIndexFromID(int id) throws IOException {
-//        int rowIndex = 0;
-//        for (ArrayList<Attribute> row : tableContents){
-//            if (Integer.parseInt(row.get(0).getDataAsString()) == id){
-//                return rowIndex;
-//            }
-//            rowIndex++;
-//        }
-//        throw new IOException("No row with that ID exists in the table");
-//    }
+    public int getRowIndexFromID(int id) throws IOException {
+        ArrayList<Attribute> idColumn = tableContents.get(0);
+        int rowIndex = 1; // Skip past header row
+
+        for (int i = 1; i < idColumn.size(); i++) {
+            Attribute indexID = idColumn.get(i); // skip past the "id" at top of the string
+            if (Integer.parseInt(indexID.getDataAsString()) == id){
+                return rowIndex;
+            }
+            rowIndex++;
+        }
+        throw new IOException("No row with that ID exists in the table");
+    }
 }
