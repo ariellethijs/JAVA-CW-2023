@@ -4,8 +4,8 @@ public class Value extends Attribute {
     int correspondingID;
     String dataAsString;
 
-    public Value(int iD, String value, String attributeName) {
-        super(attributeName);
+    public Value(int iD, String value, String attributeName, Table parentTable) {
+        super(attributeName, parentTable);
         this.correspondingID = iD; // i.e. which row is it on
         this.dataAsString = value;
     }

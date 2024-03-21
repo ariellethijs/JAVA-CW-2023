@@ -6,8 +6,11 @@ public class Attribute {
     String name;
     ArrayList<Value> allValues;
 
-    public Attribute(String attributeName){
+    Table parent;
+
+    public Attribute(String attributeName, Table parentTable){
         this.name = attributeName;
+        this.parent = parentTable;
         allValues = new ArrayList<>();
     }
 

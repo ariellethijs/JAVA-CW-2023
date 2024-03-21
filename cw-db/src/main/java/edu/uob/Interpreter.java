@@ -2,7 +2,6 @@ package edu.uob;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 
 public class Interpreter {
     private final String[] commands;
@@ -33,7 +32,7 @@ public class Interpreter {
             case "SELECT" -> executeSelect();
             case "UPDATE" -> executeUpdate();
             case "DELETE" -> executeDelete();
-//            case "JOIN" -> executeJoin();
+            case "JOIN" -> executeJoin();
             default -> throw new IOException("Attempting to interpret unimplemented command");
         }
     }
@@ -218,7 +217,7 @@ public class Interpreter {
 
     public void executeSelect() throws IOException {
         this.index++; // Skip "SELECT "
-        ResponseTableGenerator responseGenerator = new ResponseTableGenerator(currentSession);
+        ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
 
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null) {
@@ -235,10 +234,10 @@ public class Interpreter {
             this.index = nextIndex+1; // Skip past where
             ArrayList<ArrayList<Attribute>> conditionedValues = conditionSelectedAttributes(selectedAttributes, currentTable);
             this.responseRequired = true;
-            this.responseTable = responseGenerator.createConditionedResponseTable(conditionedValues, false);
+            this.responseTable = responseGenerator.createConditionedResponseTable(conditionedValues);
         } else {
             this.responseRequired = true;
-            this.responseTable = responseGenerator.createUnconditionedResponseTable(selectedAttributes, false);
+            this.responseTable = responseGenerator.createUnconditionedResponseTable(selectedAttributes);
         }
     }
 
@@ -337,7 +336,6 @@ public class Interpreter {
         while (!commands[this.index].equalsIgnoreCase("WHERE")){
             if (commands[this.index].equals(",")){ this.index++; } // Skip the commas
             if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\'') {
-                // If the value is a string literal, remove the quotes before storing
                 commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
             }
             nameValueList.add(commands[this.index]);
@@ -392,10 +390,44 @@ public class Interpreter {
         //"JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
         // performs an inner join on two tables (returning all permutations of all matching records)
 
-        //                if (selectedAttributes.get(0).getAttributeName().equalsIgnoreCase("id")){
-        //                     selectedAttributes.remove(0); // // Remove the id attribute as a new one will be generated
-        //                }
+        this.index++; // Skip "JOIN" to first table name
+        Table table1 = findCurrentTable("<JOIN> a table");
+        this.index = this.index+2; // Skip past "AND" to next table name
+        Table table2 = findCurrentTable("<JOIN> a table");
+        this.index = this.index+2; // Skip past "ON" to first attribute name
+        String table1Attribute = commands[this.index];
+        this.index = this.index+2; // Skip past "AND" to next attribute name
+        String table2Attribute = commands[this.index];
 
+        if (!table1.attributeExists(table1Attribute) || !table2.attributeExists(table2Attribute)){
+            throw new IOException("Cannot <JOIN> a table on an attribute which does not exist");
+        }
+
+        // Find the joining attributes and select the other attributes in tables to add
+        Attribute t1Attribute = table1.getAttributeFromName(table1Attribute);
+        Attribute t2Attribute = table2.getAttributeFromName(table2Attribute);
+        ArrayList<Attribute> table1SelectedAttributes = selectAttributesToJoin(table1, table1Attribute);
+        ArrayList<Attribute> table2SelectedAttributes = selectAttributesToJoin(table2, table2Attribute);
+
+        if (table1SelectedAttributes.isEmpty() && table2SelectedAttributes.isEmpty()){
+            throw new IOException("Cannot execute <JOIN> if selected tables only have one attribute");
+        }
+
+        ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
+        this.responseRequired = true;
+        this.responseTable = responseGenerator.createJoinedResponseTable(table1SelectedAttributes, table2SelectedAttributes,
+                t1Attribute, t2Attribute);
+    }
+
+    public ArrayList<Attribute> selectAttributesToJoin(Table table, String attributeToJoin){
+        ArrayList<Attribute> selectedAttributes = new ArrayList<>();
+
+        for (Attribute a : table.getAllAttributes()){
+            if (!a.getDataAsString().equalsIgnoreCase("id") && !a.getDataAsString().equals(attributeToJoin)){
+                selectedAttributes.add(a);
+            }
+        }
+        return selectedAttributes;
     }
 
     public Table findCurrentTable(String errorMessage) throws IOException {

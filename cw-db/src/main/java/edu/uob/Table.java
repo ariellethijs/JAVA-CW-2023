@@ -39,7 +39,7 @@ public class Table {
 
     public void createAttribute(String attributeName) {
         ArrayList<Attribute> attributeColumn = new ArrayList<>(); // Add a column for each attribute
-        attributeColumn.add(new Attribute(attributeName));
+        attributeColumn.add(new Attribute(attributeName, this));
         tableContents.add(attributeColumn);
     }
 
@@ -49,7 +49,7 @@ public class Table {
 
         // Add the id value before processing other values:
         Attribute idAttribute = getAttributeFromName("id");
-        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id");
+        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id", this);
         idAttribute.allValues.add(idValue);
         tableContents.get(0).add(idValue);
 
@@ -58,7 +58,7 @@ public class Table {
             String attributeName = getAttributeNameFromIndex(columnIndex); // Get corresponding attribute from value index
             Attribute parent = getAttributeFromName(attributeName); // Get parent attribute
 
-            Value newValue = new Value(currentIndexID, value, attributeName);
+            Value newValue = new Value(currentIndexID, value, attributeName, this);
             parent.allValues.add(newValue); // Add the value to its corresponding attributes ArrayList
             tableContents.get(columnIndex).add(newValue);
         }
@@ -70,7 +70,7 @@ public class Table {
         Attribute parent = getAttributeFromName(attributeName);
 
         // Create a new value and store it in tableContents & parent attributes ArrayList
-        Value newValue = new Value(idIndex, value, attributeName);
+        Value newValue = new Value(idIndex, value, attributeName, this);
         parent.allValues.add(newValue);
         tableContents.get(attributeIndex).add(newValue);  // Add as the next row in file
     }
@@ -181,7 +181,7 @@ public class Table {
         if (rowIndex >= tableContents.get(attributeIndex).size()){
             // If 'updating' a previously unset value, add a puesdo value there as placeholder
             Attribute parent = getAttributeFromName(attributeName);
-            Value placeholder = new Value(Integer.parseInt(idIndex), "", "");
+            Value placeholder = new Value(Integer.parseInt(idIndex), "", "", this);
             tableContents.get(attributeIndex).add(rowIndex, placeholder);
             parent.allValues.add(placeholder);
         }

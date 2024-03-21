@@ -204,7 +204,7 @@ public class ExampleDBTests {
                 +attributeName + ";");
         assertTrue(testValidAlterAdd.contains("[OK]"));
 
-        String response = sendCommandToServer("SELECT * FROM " +tableName + ";");
+        sendCommandToServer("SELECT * FROM " +tableName + ";");
 
         String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP "
                 +attributeName + ";");
@@ -223,7 +223,6 @@ public class ExampleDBTests {
 
     @Test
     public void testInsertParse(){
-        String validString = '\'' + generateRandomName() + '\'';
         String invalidString = generateRandomName() + '\''; // Missing opening '
 
         String databaseName = generateRandomName();
@@ -508,6 +507,44 @@ public class ExampleDBTests {
 
         String invalidDeleteNonExistentTable = sendCommandToServer("DELETE FROM " +generateRandomName() + " WHERE job LIKE 'Lawyer';");
         assertTrue(invalidDeleteNonExistentTable.contains("[ERROR]"));
+    }
+
+    @Test
+    public void testInterpretJoin(){
+        // "JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
+        String databaseName = generateRandomName();
+        String table1Name = generateRandomName();
+        String table2Name = generateRandomName();
+        String table3Name = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+
+        sendCommandToServer("CREATE TABLE " +table1Name + " ( name, age, voterID );");
+        sendCommandToServer("INSERT INTO " +table1Name + " VALUES ('Keith', 45, 4);");
+        sendCommandToServer("INSERT INTO " +table1Name + " VALUES ('Sarah', 23, 2);");
+        sendCommandToServer("INSERT INTO " +table1Name + " VALUES ('Amy', 30, 1);");
+        sendCommandToServer("INSERT INTO " +table1Name + " VALUES ('Keith', 34, 3);");
+
+        sendCommandToServer("CREATE TABLE " +table2Name + " ( location, votedFor );");
+        sendCommandToServer("INSERT INTO " +table2Name + " VALUES ('London', 'Labour');");
+        sendCommandToServer("INSERT INTO " +table2Name + " VALUES ('Bristol', 'Green');");
+        sendCommandToServer("INSERT INTO " +table2Name + " VALUES ('Birmingham', 'UKIP');");
+        sendCommandToServer("INSERT INTO " +table2Name + " VALUES ('Kent', 'Labour');");
+
+        String validJoinAllMatch = sendCommandToServer("JOIN " +table1Name + " AND " +table2Name + " ON voterID AND id;");
+        System.out.println(validJoinAllMatch);
+        assertTrue(validJoinAllMatch.contains("[OK]"));
+
+        sendCommandToServer("CREATE TABLE " +table3Name + " ( city, population );");
+        sendCommandToServer("INSERT INTO " +table3Name + " VALUES ('Hull', 10000);");
+        sendCommandToServer("INSERT INTO " +table3Name + " VALUES ('Bristol', 23000);");
+        sendCommandToServer("INSERT INTO " +table3Name + " VALUES ('Reading', 14000);");
+        sendCommandToServer("INSERT INTO " +table3Name + " VALUES ('Kent', 100000);");
+
+        String validJoinSomeMatch = sendCommandToServer("JOIN " +table3Name + " AND " +table2Name + " ON city AND location;");
+        System.out.println(validJoinSomeMatch);
+        assertTrue(validJoinSomeMatch.contains("[OK]"));
+
     }
 
     @Test
