@@ -76,16 +76,19 @@ public class Interpreter {
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null){
             throw new IOException("Cannot <CreateTable> as no database is currently selected");
-
         } else if (!currentDatabase.tableExists(commands[this.index])){
             Table currentTable = currentDatabase.createTable(commands[this.index], false);
             currentDatabase.createTableFile(commands[this.index], currentTable);
             this.index++;
             if (commands[this.index].equals("(")){
                 this.index++;
+                ArrayList<String> addedValues = new ArrayList<>();
                 while (!commands[this.index].equals(")")){
                     if (!commands[this.index].equals(",")){ // Skip over the commas in attribute list
-                        currentTable.createAttribute(commands[this.index]);
+                        if (attributeHasNotAppearedYet(addedValues, commands[this.index], currentTable)){
+                            currentTable.createAttribute(commands[this.index]);
+                            addedValues.add(commands[this.index]);
+                        }
                     }
                     this.index++;
                 }
@@ -94,6 +97,21 @@ public class Interpreter {
         } else {
             throw new IOException("Cannot <CREATE> a table with a name that already exists within your current database");
         }
+    }
+
+    public boolean attributeHasNotAppearedYet(ArrayList<String> addedValues, String attribute, Table currentTable) throws IOException {
+        if (currentTable.attributeExists(attribute)){
+            throw new IOException("Cannot create multiple columns with the same name");
+        }
+
+        if (!addedValues.isEmpty()){
+            for (String s : addedValues){
+                if (attribute.equalsIgnoreCase(s)){
+                    throw new IOException("Cannot create multiple columns with the same name");
+                }
+            }
+        }
+        return true;
     }
 
     public void executeDrop() throws IOException {
@@ -406,17 +424,18 @@ public class Interpreter {
         // Find the joining attributes and select the other attributes in tables to add
         Attribute t1Attribute = table1.getAttributeFromName(table1Attribute);
         Attribute t2Attribute = table2.getAttributeFromName(table2Attribute);
-        ArrayList<Attribute> table1SelectedAttributes = selectAttributesToJoin(table1, table1Attribute);
-        ArrayList<Attribute> table2SelectedAttributes = selectAttributesToJoin(table2, table2Attribute);
 
-        if (table1SelectedAttributes.isEmpty() && table2SelectedAttributes.isEmpty()){
-            throw new IOException("Cannot execute <JOIN> if selected tables only have one attribute");
+        ArrayList<Attribute> selectedAttributes = selectAttributesToJoin(table1, table1Attribute);
+        ArrayList<Attribute> table2SelectedAttributes = selectAttributesToJoin(table2, table2Attribute);
+        selectedAttributes.addAll(table2SelectedAttributes);
+
+        if (selectedAttributes.isEmpty()){
+            throw new IOException("Cannot execute <JOIN> on tables without any attributes");
         }
 
         ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
         this.responseRequired = true;
-        this.responseTable = responseGenerator.createJoinedResponseTable(table1SelectedAttributes, table2SelectedAttributes,
-                t1Attribute, t2Attribute);
+        this.responseTable = responseGenerator.createJoinedTable(selectedAttributes, t1Attribute, t2Attribute);
     }
 
     public ArrayList<Attribute> selectAttributesToJoin(Table table, String attributeToJoin){

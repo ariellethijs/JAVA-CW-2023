@@ -6,7 +6,7 @@ public class ResponseTableGenerator {
     public ResponseTableGenerator(){}
 
     public ArrayList<ArrayList<String>> createConditionedResponseTable(ArrayList<ArrayList<Attribute>> selectedAttributes){
-        // Create a initialise the responseTable arraylist
+        // Create and initialise the responseTable arraylist
         ArrayList<ArrayList<String>> responseTable = new ArrayList<>();
         for (int i = 0; i < selectedAttributes.size(); i++){
             ArrayList<String> row = new ArrayList<>();
@@ -47,45 +47,38 @@ public class ResponseTableGenerator {
     }
 
 
-    public ArrayList<ArrayList<String>> createJoinedResponseTable(ArrayList<Attribute> t1SelectedAttributes,
-         ArrayList<Attribute> t2SelectedAttributes, Attribute t1Attribute, Attribute t2Attribute){
+    public ArrayList<ArrayList<String>> createJoinedTable(ArrayList<Attribute> selectedAttributes, Attribute t1Attribute, Attribute t2Attribute){
 
-        ArrayList<ArrayList<String>> responseTable = createNewHeaderRow(t1SelectedAttributes, t2SelectedAttributes);
-        int rowsToAdd = Math.max(t1Attribute.allValues.size(), t2Attribute.allValues.size()); // Find the number of rows to add
+        ArrayList<ArrayList<String>> responseTable = createNewHeaderRow(selectedAttributes);
+
+        // Determine the sequence to add the table 1 and table 2 values in
+        ArrayList<Integer> t1RowsToAdd = findValueIndexesToStore(t1Attribute, t2Attribute);
+        ArrayList<Integer> t2rowSequence = findRowIndexSequenceForJoin(t1RowsToAdd, t1Attribute, t2Attribute);
+
+        int rowsToAdd = t1RowsToAdd.size();
         responseTable = addNewIDRows(responseTable, rowsToAdd); // Generate the appropriate number of new id rows
 
-        // Add the left side of table, all Values in selected attributes of table1
-        for (Attribute t1A : t1SelectedAttributes){
-            int rowIndex = 1;
-            for (Value t1AValue : t1A.allValues){
-                responseTable.get(rowIndex).add(t1AValue.getDataAsString());
-                rowIndex++; // Add next value at same column index on next row
-            }
-        }
+        for (Attribute columnAttribute : selectedAttributes) {
 
-        // Determine the sequence to add the table 2 values in and the number of matching columns
-        ArrayList<Integer> rowIndexSequence = findRowIndexSequenceForJoin(t1Attribute, t2Attribute);
-        for (Attribute columnAttribute : t2SelectedAttributes) {
-            for (int i = 0; i < rowIndexSequence.size(); i++) {
-                // Add the appropriate value at the appropriate index
-                int rowIndex = rowIndexSequence.get(i);
-                Value valueToAdd = columnAttribute.allValues.get(i);
-                responseTable.get(rowIndex).add(valueToAdd.getDataAsString());
+            if (columnAttribute.parent == t1Attribute.parent){
+                for (int i = 0; i < t1RowsToAdd.size(); i++){
+                    int valueIndex = t1RowsToAdd.get(i);
+                    Value valueToAdd = columnAttribute.allValues.get(valueIndex);
+                    responseTable.get(i+1).add(valueToAdd.getDataAsString());
+                }
+            } else if (columnAttribute.parent == t2Attribute.parent){
+                responseTable = storeValuesAccordingToRowSequence(responseTable, t2rowSequence, columnAttribute);
             }
         }
         return responseTable;
     }
 
-    public ArrayList<ArrayList<String>> createNewHeaderRow(ArrayList<Attribute> t1SelectedAttributes, ArrayList<Attribute> t2SelectedAttributes){
+    public ArrayList<ArrayList<String>> createNewHeaderRow(ArrayList<Attribute> selectedAttributes){
         ArrayList<String> headerRow = new ArrayList<>();
 
         headerRow.add("id"); // Add the new id column header
-        for (Attribute t1A : t1SelectedAttributes){
-            String headerName = t1A.parent.name + "." + t1A.name;
-            headerRow.add(headerName);
-        }
-        for (Attribute t2A : t2SelectedAttributes){
-            String headerName = t2A.parent.name + "." + t2A.name;
+        for (Attribute a : selectedAttributes){
+            String headerName = a.parent.name + "." + a.name;
             headerRow.add(headerName);
         }
         ArrayList<ArrayList<String>> responseTable = new ArrayList<>();
@@ -103,13 +96,18 @@ public class ResponseTableGenerator {
         return responseTable;
     }
 
-    public ArrayList<Integer> findRowIndexSequenceForJoin(Attribute t1Attribute, Attribute t2Attribute){
-        ArrayList<Integer> rowIndexSequence = new ArrayList<>();
+    public ArrayList<Integer> findRowIndexSequenceForJoin(ArrayList<Integer> t1RowsToAdd, Attribute t1Attribute, Attribute t2Attribute){
 
-        for (Value t2AValue : t2Attribute.allValues){ // Iterate through all values in the joining column
+        ArrayList<Value> newT1AttributeValues = new ArrayList<>();
+        for (Integer integer : t1RowsToAdd) { // Store a new sub arraylist of all the values in table 1 which have a matching t2 value
+            newT1AttributeValues.add(t1Attribute.allValues.get(integer));
+        }
+
+        ArrayList<Integer> rowIndexSequence = new ArrayList<>();
+        for (Value t2Value : t2Attribute.allValues){ // Iterate through all values in the joining column
             int rowIndex = 1;
-            for (Value t1AValue : t1Attribute.allValues){ // Find the rowIndex it should be joined onto
-                if (t2AValue.getDataAsString().equals(t1AValue.getDataAsString())){
+            for (Value t1Value : newT1AttributeValues){ // Find the rowIndex it should be joined onto
+                if (t2Value.getDataAsString().equals(t1Value.getDataAsString())){
                     rowIndexSequence.add(rowIndex); // Store the sequence of storing the values of table 2
                 }
                 rowIndex++;
@@ -117,4 +115,29 @@ public class ResponseTableGenerator {
         }
         return rowIndexSequence;
     }
+
+    public ArrayList<ArrayList<String>> storeValuesAccordingToRowSequence(ArrayList<ArrayList<String>> responseTable,
+                            ArrayList<Integer> rowSequence, Attribute columnAttribute){
+        for (int i = 0; i < rowSequence.size(); i++) {
+            // Add the appropriate value at the appropriate index
+            int rowIndex = rowSequence.get(i);
+            Value valueToAdd = columnAttribute.allValues.get(i);
+            responseTable.get(rowIndex).add(valueToAdd.getDataAsString());
+        }
+        return responseTable;
+    }
+
+    public ArrayList<Integer> findValueIndexesToStore(Attribute t1Attribute, Attribute t2Attribute){
+        ArrayList<Integer> rowIndexesToStore = new ArrayList<>();
+        for (Value t1Value : t1Attribute.allValues){
+            for (Value t2Value : t2Attribute.allValues){
+                if (t1Value.getDataAsString().equals(t2Value.getDataAsString())){
+                    rowIndexesToStore.add(t1Attribute.allValues.indexOf(t1Value));
+                }
+            }
+        }
+        return rowIndexesToStore;
+    }
+
+
 }

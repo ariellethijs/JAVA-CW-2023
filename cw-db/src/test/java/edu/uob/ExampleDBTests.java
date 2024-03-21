@@ -125,6 +125,10 @@ public class ExampleDBTests {
         String validDatabaseName = generateRandomName();
         String invalidName = generateRandomName() + "!&£*";
 
+        sendCommandToServer("CREATE DATABASE COURSEWORK;");
+        String testCaseSensitivity = sendCommandToServer("USE Coursework;");
+        assertTrue(testCaseSensitivity.contains("[OK]"));
+
         sendCommandToServer("CREATE DATABASE " +validDatabaseName + ";");
         String validUse = sendCommandToServer("USE " + validDatabaseName + ";");
         assertTrue(validUse.contains("[OK]"));
@@ -532,7 +536,6 @@ public class ExampleDBTests {
         sendCommandToServer("INSERT INTO " +table2Name + " VALUES ('Kent', 'Labour');");
 
         String validJoinAllMatch = sendCommandToServer("JOIN " +table1Name + " AND " +table2Name + " ON voterID AND id;");
-        System.out.println(validJoinAllMatch);
         assertTrue(validJoinAllMatch.contains("[OK]"));
 
         sendCommandToServer("CREATE TABLE " +table3Name + " ( city, population );");
@@ -542,9 +545,13 @@ public class ExampleDBTests {
         sendCommandToServer("INSERT INTO " +table3Name + " VALUES ('Kent', 100000);");
 
         String validJoinSomeMatch = sendCommandToServer("JOIN " +table3Name + " AND " +table2Name + " ON city AND location;");
-        System.out.println(validJoinSomeMatch);
         assertTrue(validJoinSomeMatch.contains("[OK]"));
 
+        String validJoinNoMatch = sendCommandToServer("JOIN " +table3Name + " AND " +table2Name + " ON population AND location;");
+        assertTrue(validJoinNoMatch.contains("[OK]"));
+
+        String invalidJoin = sendCommandToServer("JOIN " +table3Name + " AND " +table2Name + " ON name AND location;");
+        assertTrue(invalidJoin.contains("[ERROR]"));
     }
 
     @Test
@@ -569,6 +576,13 @@ public class ExampleDBTests {
         assertTrue(testSelect1.contains("[OK]"));
         String testSelect2 = sendCommandToServer("SELECT * FROM marks WHERE pass == TRUE;");
         assertTrue(testSelect2.contains("[OK]"));
+        sendCommandToServer("CREATE TABLE coursework (task, submission);");
+        sendCommandToServer("INSERT INTO coursework VALUES ('OXO', 3);");
+        sendCommandToServer("INSERT INTO coursework VALUES ('DB', 1);");
+        sendCommandToServer("INSERT INTO coursework VALUES ('OXO', 4);");
+        sendCommandToServer("INSERT INTO coursework VALUES ('STAG', 2);");
+        String testJoin = sendCommandToServer("JOIN coursework AND marks ON submission AND id;");
+        assertTrue(testJoin.contains("[OK]"));
         String testUpdate1 = sendCommandToServer("UPDATE marks SET mark = 38 WHERE name == 'Chris';");
         assertTrue(testUpdate1.contains("[OK]"));
         String testDelete1 = sendCommandToServer("DELETE FROM marks WHERE name == 'Sion';");

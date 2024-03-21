@@ -77,7 +77,7 @@ public class Table {
 
     public boolean attributeExists(String attributeName) {
         for (ArrayList<Attribute> column : tableContents){
-            if (column.get(0).name.equals(attributeName)){
+            if (column.get(0).name.equalsIgnoreCase(attributeName)){
                 return true;
             }
         }
@@ -86,7 +86,7 @@ public class Table {
 
     public Attribute getAttributeFromName(String attributeName){
         for (ArrayList<Attribute> column : tableContents){
-            if (column.get(0).name.equals(attributeName)){
+            if (column.get(0).name.equalsIgnoreCase(attributeName)){
                 return column.get(0);
             }
         }
@@ -98,7 +98,7 @@ public class Table {
             throw new IOException("No such attribute exists");
         } else {
             for (ArrayList<Attribute> column : tableContents){
-                if (!column.isEmpty() && column.get(0).name.equals(attributeName)){
+                if (!column.isEmpty() && column.get(0).name.equalsIgnoreCase(attributeName)){
                     return tableContents.indexOf(column);
                 }
             }
@@ -171,15 +171,8 @@ public class Table {
         int attributeIndex = getAttributeIndexFromName(attributeName);
         // Update the appropriate value in table contents
 
-//        try {
-//            Attribute value = tableContents.get(attributeIndex).get(rowIndex);
-//        } catch (ArrayIndexOutOfBoundsException arrayIndexOutOfBoundsException){
-//            tableContents.get(attributeIndex).add(rowIndex, new Value(Integer.parseInt(idIndex), "", ""));
-//            // If 'updating' a previously unset value, add a puesdo value there as placeholder
-//        }
-
         if (rowIndex >= tableContents.get(attributeIndex).size()){
-            // If 'updating' a previously unset value, add a puesdo value there as placeholder
+            // If 'updating' a previously unset value, add a pseudo value there as placeholder
             Attribute parent = getAttributeFromName(attributeName);
             Value placeholder = new Value(Integer.parseInt(idIndex), "", "", this);
             tableContents.get(attributeIndex).add(rowIndex, placeholder);

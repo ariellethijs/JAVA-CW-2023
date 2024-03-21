@@ -110,9 +110,8 @@ public class DBSession {
     }
 
     public boolean dbExists(String dbName){
-
         for (Database db : allDatabases){
-            if (db.getDBName().equals(dbName)){
+            if (db.getDBName().equalsIgnoreCase(dbName)){
                 return true;
             }
         }
@@ -121,7 +120,7 @@ public class DBSession {
 
     public Database getDatabaseByName(String dbName) throws IOException {
         for (Database db : allDatabases){
-            if (db.getDBName().equals(dbName)){
+            if (db.getDBName().equalsIgnoreCase(dbName)){
                 return db;
             }
         }
@@ -145,7 +144,7 @@ public class DBSession {
 
     public File getDatabaseDirectoryFromName(String databaseName){
         for (File dbDirectory : allDatabaseDirectories){
-            if (dbDirectory.getName().equals(databaseName)){
+            if (dbDirectory.getName().equalsIgnoreCase(databaseName)){
                 return dbDirectory;
             }
         }

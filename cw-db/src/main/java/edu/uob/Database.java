@@ -39,7 +39,7 @@ public class Database {
 
     public Table getTableByName(String name){
         for (Table table : allTables){
-            if (table.getTableName().equals(name)){
+            if (table.getTableName().equalsIgnoreCase(name)){
                 return table;
             }
         }
@@ -48,7 +48,7 @@ public class Database {
 
     public boolean tableExists(String tableName){
         for (Table table : allTables){
-            if (table.getTableName().equals(tableName)){
+            if (table.getTableName().equalsIgnoreCase(tableName)){
                 return true;
             }
         }
@@ -61,7 +61,7 @@ public class Database {
 
     public File getFileByTableName(String tableName) throws IOException {
         for (File tableFile : allTableFiles){
-            if (tableFile.getName().equals(tableName + ".tab")){
+            if (tableFile.getName().equalsIgnoreCase(tableName + ".tab")){
                 return tableFile;
             }
         }

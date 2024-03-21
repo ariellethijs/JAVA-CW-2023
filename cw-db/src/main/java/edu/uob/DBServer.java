@@ -53,10 +53,6 @@ public class DBServer {
         Tokeniser tokeniser = new Tokeniser();
         ArrayList<String> tokens = tokeniser.tokeniseInput(command);
 
-//        for (String token : tokens){
-//            System.out.println(token);
-//        }
-
         String[] commands = tokens.toArray(new String[0]);
 
         Parser parser = new Parser(commands);
