@@ -13,7 +13,7 @@ import java.util.ArrayList;
 
 public class DBServer {
     private static final char END_OF_TRANSMISSION = 4;
-    private String storageFolderPath;
+    private final String storageFolderPath;
 
     private DBSession currentSession;
 
@@ -50,16 +50,16 @@ public class DBServer {
     */
     public String handleCommand(String command) {
 
-        DBTokeniser tokeniser = new DBTokeniser();
+        Tokeniser tokeniser = new Tokeniser();
         ArrayList<String> tokens = tokeniser.tokeniseInput(command);
         String[] commands = tokens.toArray(new String[0]);
 
-        DBParser parser = new DBParser(commands);
-        DBInterpreter interpreter = new DBInterpreter(commands, this.currentSession);
+        Parser parser = new Parser(commands);
+        Interpreter interpreter = new Interpreter(commands, this.currentSession);
 
         try {
             parser.parseAllTokens();
-            ArrayList<Integer> validCommandsStartIndexes = parser.getValidCommandStartingIndexes();
+            ArrayList<Integer> validCommandsStartIndexes = parser.validCommandStartingIndexes;
 
             for (Integer startIndex : validCommandsStartIndexes){
                  interpreter.interpretCommand(startIndex);
@@ -76,16 +76,29 @@ public class DBServer {
         }
     }
 
-    public String convertResponseTableToString(ArrayList<ArrayList<String>> responseTable){
-        StringBuilder stringBuilder = new StringBuilder();
+    private String convertResponseTableToString(ArrayList<ArrayList<String>> responseTable){
+        int[] columnWidths = determineColumnWidths(responseTable);
 
+        StringBuilder stringBuilder = new StringBuilder();
         for (ArrayList<String> row : responseTable){
+            int i = 0;
             for (String value : row){
-                stringBuilder.append(value).append("\t");
+                stringBuilder.append(String.format("%-" + (columnWidths[i] + 2) + "s", value));
+                i++;
             }
             stringBuilder.append("\n");
         }
         return stringBuilder.toString();
+    }
+
+    private int[] determineColumnWidths(ArrayList<ArrayList<String>> responseTable){
+        int[] columnWidths = new int[responseTable.get(0).size()];
+        for (ArrayList<String> row : responseTable) {
+            for (int i = 0; i < row.size(); i++) {
+                columnWidths[i] = Math.max(columnWidths[i], row.get(i).length());
+            }
+        }
+        return columnWidths;
     }
 
     //  === Methods below handle networking aspects of the project - you will not need to change these ! ===

@@ -3,7 +3,6 @@ package edu.uob;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.time.Duration;
-import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -25,7 +24,7 @@ public class ExampleDBTests {
     }
 
     private String sendCommandToServer(String command) {
-        // Try to send a command to the server - this call will timeout if it takes too long (in case the server enters an infinite loop)
+        // Try to send a command to the server - this call will time out if it takes too long (in case the server enters an infinite loop)
         return assertTimeoutPreemptively(Duration.ofMillis(1000), () -> { return server.handleCommand(command);},
         "Server took too long to respond (probably stuck in an infinite loop)");
     }
@@ -84,6 +83,7 @@ public class ExampleDBTests {
         server = new DBServer();
         sendCommandToServer("USE " + randomName + ";");
         String response = sendCommandToServer("SELECT * FROM marks;");
+        System.out.println(response);
         assertTrue(response.contains("Simon"), "Simon was added to a table and the server restarted - but Simon was not returned by SELECT *");
     }
 
@@ -102,7 +102,7 @@ public class ExampleDBTests {
 
     @Test
     public void testTokeniser(){
-        DBTokeniser tokeniser = new DBTokeniser();
+        Tokeniser tokeniser = new Tokeniser();
         // Tests for tokeniser
         String command = "INSERT   INTO Employee  VALUES (1,   'John Doe', 30);  ";
         String[] expectedTokens = { "INSERT", "INTO", "Employee", "VALUES", "(", "1", ",", "'John Doe'", ",", "30", ")", ";" };
@@ -304,10 +304,6 @@ public class ExampleDBTests {
         assertTrue(testNestedConditions.contains("[OK]"));
     }
 
-//    public boolean testUpdateParse(){
-//
-//    }
-
 //    public boolean testDeleteParse(){
 //
 //    }
@@ -397,6 +393,9 @@ public class ExampleDBTests {
         String testValidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DRoP age;");
         assertTrue(testValidAlterDrop.contains("[OK]"));
 
+        String testInvalidDropID = sendCommandToServer("ALTER TABLE " +tableName + " DROP id;");
+        assertTrue(testInvalidDropID.contains("[ERROR]"));
+
         String testInvalidAlterDrop = sendCommandToServer("ALTER TABLE " +tableName + " DROP gender;"); // Doesn't exist !
         assertTrue(testInvalidAlterDrop.contains("[ERROR]"));
     }
@@ -447,30 +446,58 @@ public class ExampleDBTests {
         sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, 160);");
 
         String validSelectAll = sendCommandToServer("SELECT * FROM " +tableName + ";");
-        System.out.println(validSelectAll);
         assertTrue(validSelectAll.contains("[OK]"));
 
         String validSelectSome = sendCommandToServer("SELECT name, age FROM " +tableName + ";");
-        System.out.println(validSelectSome);
         assertTrue(validSelectSome.contains("[OK]"));
 
         String validSelectOne = sendCommandToServer("SELECT age FROM " +tableName + ";");
-        System.out.println(validSelectOne);
         assertTrue(validSelectOne.contains("[OK]"));
 
         String invalidSelectOne = sendCommandToServer("SELECT gender FROM " +tableName + ";");
         assertTrue(invalidSelectOne.contains("[ERROR]"));
 
         String validConditionedSelectSome = sendCommandToServer("SELECT id, name FROM " +tableName + " WHERE age <= 34;");
-        System.out.println(validConditionedSelectSome);
         assertTrue(validConditionedSelectSome.contains("[OK]"));
 
         String validNestedConditionSelect = sendCommandToServer("SELECT id, name FROM " +tableName + " WHERE (age < 30 OR age > 40) AND height > 150;");
-        System.out.println(validNestedConditionSelect);
         assertTrue(validNestedConditionSelect.contains("[OK]"));
 
         String validSelectHeadersOnly = sendCommandToServer("SELECT * FROM " +tableName + " WHERE age <= 10;");
         assertTrue(validSelectHeadersOnly.contains("[OK]"));
     }
+
+    @Test
+    public void testInterpretUpdate(){
+        // [TableName] " SET " <NameValueList> " WHERE " <Condition>
+        // <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
+        // E.g., UPDATE marks SET mark = 38 WHERE name == 'Chris';
+
+        String databaseName = generateRandomName();
+        String tableName = generateRandomName();
+        sendCommandToServer("CREATE DATABASE " +databaseName + ";");
+        sendCommandToServer("USE " +databaseName + ";");
+        sendCommandToServer("CREATE TABLE " +tableName + " ( name, age, height, gender );");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 45, 172, 'male');");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Sarah', 23, 121, 'female');");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Amy', 30, 153, null);");
+        sendCommandToServer("INSERT INTO " +tableName + " VALUES ('Keith', 34, 167, 'male');");
+
+        String validUpdate = sendCommandToServer("UPDATE " +tableName + " SET height = 140 WHERE name == 'Sarah';");
+        assertTrue(validUpdate.contains("[OK]"));
+
+        String validUpdateMultipleConditions = sendCommandToServer("UPDATE " +tableName + " SET height = 140 WHERE (name == 'Sarah') OR (gender != null);");
+        assertTrue(validUpdateMultipleConditions.contains("[OK]"));
+
+        String validUpdateMultipleAttributes = sendCommandToServer("UPDATE " +tableName + " SET name = 'Anthony', gender = 'male' WHERE (gender == null);");
+        assertTrue(validUpdateMultipleAttributes.contains("[OK]"));
+
+        String invalidUpdateOnIDAttribute = sendCommandToServer("UPDATE " +tableName + " SET id = 45, gender = 'male' WHERE (gender != null);");
+        assertTrue(invalidUpdateOnIDAttribute.contains("[ERROR]"));
+
+        String invalidUpdateOnNonExistentAttribute = sendCommandToServer("UPDATE " +tableName + " SET occupation = 'plumber', gender = 'male' WHERE (gender != null);");
+        assertTrue(invalidUpdateOnNonExistentAttribute.contains("[ERROR]"));
+    }
+
 
 }

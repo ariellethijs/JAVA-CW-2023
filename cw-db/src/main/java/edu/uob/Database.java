@@ -8,15 +8,11 @@ import java.util.ArrayList;
 public class Database {
     String name;
     ArrayList<Table> allTables;
-    DBSession currentSession;
-
     File databaseDirectory;
-
     ArrayList<File> allTableFiles;
 
-    public Database(String DbName, DBSession current){
+    public Database(String DbName){
         this.name = DbName;
-        this.currentSession = current;
         this.allTables = new ArrayList<>();
         this.allTableFiles = new ArrayList<>();
     }
@@ -25,8 +21,8 @@ public class Database {
         return this.name;
     }
 
-    public Table createTable(String tableName, DBSession currentSession) throws IOException {
-        Table newTable = new Table(tableName, currentSession, this);
+    public Table createTable(String tableName, boolean fromFile) {
+        Table newTable = new Table(tableName, fromFile);
         allTables.add(newTable);
         return newTable;
     }

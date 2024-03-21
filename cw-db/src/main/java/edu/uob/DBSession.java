@@ -10,17 +10,11 @@ public class DBSession {
     ArrayList<Database> allDatabases;
     ArrayList<File> allDatabaseDirectories;
     Database databaseInUse;
-
-    public boolean databaseIsInUse;
-
     String storageFolderPath;
-
-    int indexID;
 
     public DBSession(String folderPath) throws IOException {
         this.storageFolderPath = folderPath;
-        databaseInUse = new Database("initializer", this);
-        databaseIsInUse = false;
+        databaseInUse = new Database("initializer");
         this.allDatabases = new ArrayList<>();
         this.allDatabaseDirectories = new ArrayList<>();
         storeDatabasesInDataFolder();
@@ -50,7 +44,7 @@ public class DBSession {
                 if (databaseFile.isFile() && databaseFile.getName().endsWith(".tab")){
                     String tableName = getNameWithoutExtension(databaseFile);
                     if (!currentDatabase.tableExists(tableName)){ // Wouldn't really get here but just in case
-                        Table currentTable = currentDatabase.createTable(tableName, this);
+                        Table currentTable = currentDatabase.createTable(tableName, true);
                         storeFile(databaseFile, currentTable);
                     }
                 }
@@ -84,7 +78,7 @@ public class DBSession {
             }
     }
 
-    public void storeAttributesFromFile(String[] attributes, Table currentTable) throws IOException {
+    public void storeAttributesFromFile(String[] attributes, Table currentTable) {
         for (String attributeName : attributes){
             currentTable.createAttribute(attributeName);
         }
@@ -99,6 +93,7 @@ public class DBSession {
                 if (rowID < 0) {
                     throw new IOException("id column is stored incorrectly in Table " + currentTable.getTableName());
                 }
+                currentTable.createValueFromFile(columnIndex, value, rowID);
             } else {
                 currentTable.createValueFromFile(columnIndex, value, rowID);
             }
@@ -133,16 +128,8 @@ public class DBSession {
         throw new IOException("No such database exists");
     }
 
-    public int getIndexID(){
-        return this.indexID;
-    }
-
-    public void incrementIndexID(){
-        this.indexID++;
-    }
-
     public Database createDatabase(String dbName) {
-        Database newDB = new Database(dbName, this);
+        Database newDB = new Database(dbName);
         allDatabases.add(newDB);
         return newDB;
     }
@@ -163,7 +150,6 @@ public class DBSession {
             }
         }
         return null;
-
     }
 
     public void deleteDatabase(String databaseName) throws IOException {
@@ -206,7 +192,5 @@ public class DBSession {
         }
         return databaseDirectory.delete();
     }
-
-
 
 }

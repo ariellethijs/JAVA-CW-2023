@@ -3,15 +3,14 @@ package edu.uob;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class DBInterpreter {
+public class Interpreter {
     private final String[] commands;
     private int index;
-    private DBSession currentSession;
-
+    private final DBSession currentSession;
     public boolean responseRequired;
     public ArrayList<ArrayList<String>> responseTable;
 
-    public DBInterpreter(String[] commandTokens, DBSession current) {
+    public Interpreter(String[] commandTokens, DBSession current) {
         this.currentSession = current;
         this.commands = commandTokens;
         this.index = 0;
@@ -31,7 +30,7 @@ public class DBInterpreter {
             case "ALTER" -> executeAlter();
             case "INSERT" -> executeInsert();
             case "SELECT" -> executeSelect();
-//            case "UPDATE" -> executeUpdate();
+            case "UPDATE" -> executeUpdate();
 //            case "DELETE" -> executeDelete();
 //            case "JOIN" -> executeJoin();
             default -> throw new IOException("Attempting to interpret unimplemented command");
@@ -79,7 +78,7 @@ public class DBInterpreter {
             throw new IOException("Cannot <CreateTable> as no database is currently selected");
 
         } else if (!currentDatabase.tableExists(commands[this.index])){
-            Table currentTable = currentDatabase.createTable(commands[this.index], currentSession);
+            Table currentTable = currentDatabase.createTable(commands[this.index], false);
             currentDatabase.createTableFile(commands[this.index], currentTable);
             this.index++;
             if (commands[this.index].equals("(")){
@@ -172,13 +171,14 @@ public class DBInterpreter {
         }
     }
 
-    // NEED TO ADD THIS TO ALTER DROP : !!!!!!!!!!!!!!!!!!!!
-    // attempting to remove the ID column from a table
-
     public void executeAlterDrop(Table currentTable) throws IOException {
         String attributeName = commands[this.index];
         if (currentTable.attributeExists(attributeName)){
-            currentTable.deleteAttribute(attributeName);
+            if (attributeName.equalsIgnoreCase("id")){
+                throw new IOException("Cannot <ALTER> the id column of a table");
+            } else {
+                currentTable.deleteAttribute(attributeName);
+            }
         } else {
             throw new IOException("Cannot <ALTER> a table by dropping an attribute which does not exist");
         }
@@ -306,7 +306,6 @@ public class DBInterpreter {
             int rowIndex = 1; // Reset to 1 (first row of values) for each column
             for (Value value : attribute.allValues){
                 ConditionProcessor conditionProcessor = new ConditionProcessor();
-
                 if (conditionProcessor.checkRowMeetsConditions(allConditions, value, currentTable)){
                     if (rowIndex >= conditionedValues.size()){ // Add a new row to arraylist if necessary
                         ArrayList<Attribute> row = new ArrayList<>();
@@ -334,28 +333,80 @@ public class DBInterpreter {
         return allConditions;
     }
 
-    // THROW ERROR WHEN : changing (updating) the ID of a record
-    // [TableName] " SET " <NameValueList> " WHERE " <Condition>
-    // changes the existing data contained within a table
-    public void executeUpdate() throws IOException { // Need to test parsing before implementing this
+    public void executeUpdate() throws IOException {
+        // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         this.index++; // Skip past "UPDATE"
-
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null) {
             throw new IOException("Cannot <UPDATE> a table as no database is currently selected");
         }
         String tableName = commands[this.index];
-        if (currentDatabase.tableExists(tableName)){
-            this.index++;
-        } else {
+        if (!currentDatabase.tableExists(tableName)){
             throw new IOException("Cannot <UPDATE> a table which does not exist");
         }
 
+        Table currentTable = currentDatabase.getTableByName(tableName);
+        this.index = this.index + 2; // Skip to <NameValueList>
+        ArrayList<String> nameValueList = storeNameValueList();
+        if (commands[this.index].equalsIgnoreCase("WHERE")){ this.index++; }
+        applyUpdates(nameValueList, currentTable);
+    }
+
+    public ArrayList<String> storeNameValueList(){
+        // <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
+
+        ArrayList<String> nameValueList = new ArrayList<>();
+
+        // Store all nameValuePairs
+        while (!commands[this.index].equalsIgnoreCase("WHERE")){
+            if (commands[this.index].equals(",")){ this.index++; } // Skip the commas
+            if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\'') {
+                // If the value is a string literal, remove the quotes before storing
+                commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
+            }
+            nameValueList.add(commands[this.index]);
+            this.index++;
+        }
+        return nameValueList;
+    }
+
+    public void applyUpdates(ArrayList<String> nameValueList, Table currentTable) throws IOException {
+        Attribute idColumn = currentTable.getAttributeFromName("id");
+        ArrayList<String> allConditions = storeConditions();
+        ConditionProcessor conditionProcessor = new ConditionProcessor();
+
+        for (int nameIndex = 0, valueIndex = 2; valueIndex < nameValueList.size(); nameIndex = nameIndex + 3, valueIndex = valueIndex + 3) {
+            for (Value id : idColumn.allValues) { // Check if each valueRow meets the conditions
+                if (conditionProcessor.checkRowMeetsConditions(allConditions, id, currentTable)){
+                    String attributeName = nameValueList.get(nameIndex);
+                    String newValue = nameValueList.get(valueIndex);
+                    if (!currentTable.attributeExists(attributeName)){
+                        throw new IOException("Cannot <UPDATE> an attribute that does not exist");
+                    } else if (attributeName.equalsIgnoreCase("id")){
+                        throw new IOException("Cannot <UPDATE> the id column of a table");
+                    } else {
+                        currentTable.updateValue(id.getDataAsString(), attributeName, newValue);
+                    }
+                }
+            }
+        }
     }
 
     public void executeDelete() throws IOException {
         // "DELETE " "FROM " [TableName] " WHERE " <Condition>
         // removes rows that match the given condition from an existing table
+        this.index++; // Skip past "DELETE"
+
+        Database currentDatabase = currentSession.getDatabaseInUse();
+        if (currentDatabase == null) {
+            throw new IOException("Cannot <DELETE> a table as no database is currently selected");
+        }
+        String tableName = commands[this.index];
+        if (!currentDatabase.tableExists(tableName)){
+            throw new IOException("Cannot <DELETE> a table which does not exist");
+        }
+
+
 
     }
     public void executeJoin() throws IOException {

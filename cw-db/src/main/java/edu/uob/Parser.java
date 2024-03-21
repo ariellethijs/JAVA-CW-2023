@@ -2,15 +2,13 @@ package edu.uob;
 import java.util.ArrayList;
 import java.io.IOException;
 
-public class DBParser {
+public class Parser {
     private final String[] commands;
     private int index;
-
     public ArrayList<Integer> validCommandStartingIndexes;
+    private final String[] sqlKeywords;
 
-    public String[] sqlKeywords;
-
-    public DBParser(String[] commandTokens){
+    public Parser(String[] commandTokens){
         this.commands = commandTokens;
         this.index = 0;
         this.validCommandStartingIndexes = new ArrayList<>();
@@ -39,10 +37,6 @@ public class DBParser {
         if (commands.length > 0 && !commands[commands.length - 1].equals(";")){
             throw new IOException("Missing semicolon at the end of the command");
         }
-    }
-
-    public ArrayList<Integer> getValidCommandStartingIndexes() {
-        return validCommandStartingIndexes;
     }
 
     public boolean parseCommand() throws IOException {
@@ -242,7 +236,9 @@ public class DBParser {
         // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         boolean validSyntax = false;
         if (parsePlainText()){
+            this.index++;
             if (commands[this.index].equalsIgnoreCase("SET")){
+                this.index++;
                 if (parseNameValueList()){
                     validSyntax = whereCondition();
                 }
@@ -255,7 +251,6 @@ public class DBParser {
             return true;
         }
     }
-
 
     public boolean parseDelete() throws IOException {
         this.index++;
@@ -322,7 +317,6 @@ public class DBParser {
         return parseUpper(c) || parseLower(c);
     }
 
-    // CANNOT BE KEYWORD
     public boolean parsePlainText() throws IOException {
         // [TableName] && [AttributeName] && [DatabaseName] ::==
         // [Letter] | [Digit] | [PlainText] [Letter] | [PlainText] [Digit]
@@ -393,7 +387,7 @@ public class DBParser {
         return (commands[this.index].equalsIgnoreCase("ADD") || commands[this.index].equalsIgnoreCase("DROP"));
     }
 
-    boolean containsAtLeastOneValue = false;
+    private boolean containsAtLeastOneValue = false;
 
     public boolean parseValueList() {
         // [Value] | [Value] "," <ValueList>
@@ -427,7 +421,7 @@ public class DBParser {
                 }
             }
 
-            if (!(parseDigit(c)) && c != '.' && c != '+' && c != '-'){
+            if (!(parseDigit(c)) && c != '.' && !plusOrMinus()){
                 return false;
             }
         }
@@ -436,20 +430,17 @@ public class DBParser {
 
     public boolean parseIntegerLiteral(){
         // [DigitSequence] | "-" [DigitSequence] | "+" [DigitSequence]
-        //if (plusOrMinus()){ this.index++; }
         return parseDigitSequence();
     }
 
     public boolean parseFloatLiteral(){
         // [DigitSequence] "." [DigitSequence] | "-" [DigitSequence] "." [DigitSequence] | "+" [DigitSequence] "." [DigitSequence]
-        //if (plusOrMinus()){ this.index++; }
         return parseDigitSequence();
     }
 
     public boolean plusOrMinus(){
         return (commands[this.index].equals("-") || commands[this.index].equals("+"));
     }
-
 
     public boolean parseBooleanLiteral(){
         return (commands[this.index].equalsIgnoreCase("TRUE") || commands[this.index].equalsIgnoreCase("FALSE"));
@@ -473,7 +464,6 @@ public class DBParser {
                 return false;
                 }
            }
-//         this.index++;
            return true;
         } else {
             return false;
@@ -546,6 +536,7 @@ public class DBParser {
                 if (commands[this.index].equals(")")) {
                     closingBracketCount++;
                     this.index++; // Skip past closing bracket
+                    if ((openingBracketCount - closingBracketCount == 0) && commands[this.index].equals(";")){ return true; }
                 }
                 if (parseBoolOperator(commands[this.index])) {
                     this.index++;
@@ -573,7 +564,6 @@ public class DBParser {
         // "AND" || "OR"
         return (token.equalsIgnoreCase("AND") || token.equalsIgnoreCase("OR"));
     }
-
 
     public boolean parseComparator(){
         // Check if comparator is from the valid set

@@ -10,7 +10,6 @@ public class ConditionProcessor {
 
     public boolean checkRowMeetsConditions(ArrayList<String> allConditions, Value value, Table current) throws IOException {
         currentTable = current; // Store the current table for evaluating conditions when broken down
-
         int rowIndex = currentTable.getRowIndexFromID(value.correspondingID);
 
         ArrayList<Attribute> valueRow = new ArrayList<>();

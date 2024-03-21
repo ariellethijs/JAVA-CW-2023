@@ -1,10 +1,8 @@
 package edu.uob;
 
-import java.util.AbstractList;
 import java.util.ArrayList;
 
 public class ResponseTableGenerator {
-
     DBSession currentSession;
 
     public ResponseTableGenerator(DBSession current){

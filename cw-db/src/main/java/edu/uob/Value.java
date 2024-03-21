@@ -1,21 +1,22 @@
 package edu.uob;
 
 public class Value extends Attribute {
-
-    String correspondingAttribute;
     int correspondingID;
     String dataAsString;
 
-
-    public Value(int iD, String value, String attributeName, Table parentTable) {
-        super(attributeName, parentTable);
+    public Value(int iD, String value, String attributeName) {
+        super(attributeName);
         this.correspondingID = iD; // i.e. which row is it on
-        this.correspondingAttribute = attributeName; // i.e. which column is it in
         this.dataAsString = value;
     }
 
     @Override
     public String getDataAsString(){
         return this.dataAsString;
+    }
+
+    @Override
+    public void setDataAsString(String newValue){
+        this.dataAsString = newValue;
     }
 }

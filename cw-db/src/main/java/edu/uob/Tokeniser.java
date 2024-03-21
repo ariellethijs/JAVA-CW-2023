@@ -3,7 +3,7 @@ package edu.uob;
 import java.util.ArrayList;
 import java.util.Arrays;
 
-public class DBTokeniser {
+public class Tokeniser {
     String query;
     String[] specialCharacters = {"(",")",",",";"};
     ArrayList<String> tokens = new ArrayList<>();

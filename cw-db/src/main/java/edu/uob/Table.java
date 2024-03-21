@@ -7,24 +7,17 @@ import java.util.ArrayList;
 
 public class Table {
     String name;
-
-    DBSession currentSession;
-
     ArrayList<ArrayList<Attribute>> tableContents;
-
-    Database parent;
-
     File tableFile;
-
     int indexID;
 
-    public Table(String tableName, DBSession current, Database parentDatabase) {
+    public Table(String tableName, boolean fromFile) {
         this.indexID = 1; // First index for the table
         this.name = tableName;
-        this.currentSession = current;
-        this.parent = parentDatabase;
         tableContents = new ArrayList<>();
-        createAttribute("id"); // Add the id column to table
+        if (!fromFile){ // Tables from files should already have id column
+            createAttribute("id"); // Add the id column to table
+        }
     }
 
     public String getTableName(){
@@ -46,7 +39,7 @@ public class Table {
 
     public void createAttribute(String attributeName) {
         ArrayList<Attribute> attributeColumn = new ArrayList<>(); // Add a column for each attribute
-        attributeColumn.add(new Attribute(attributeName, this));
+        attributeColumn.add(new Attribute(attributeName));
         tableContents.add(attributeColumn);
     }
 
@@ -56,8 +49,8 @@ public class Table {
 
         // Add the id value before processing other values:
         Attribute idAttribute = getAttributeFromName("id");
-        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id", this);
-        idAttribute.addValue(idValue);
+        Value idValue = new Value(currentIndexID, String.valueOf(currentIndexID), "id");
+        idAttribute.allValues.add(idValue);
         tableContents.get(0).add(idValue);
 
         for (String value : values){
@@ -65,20 +58,19 @@ public class Table {
             String attributeName = getAttributeNameFromIndex(columnIndex); // Get corresponding attribute from value index
             Attribute parent = getAttributeFromName(attributeName); // Get parent attribute
 
-            Value newValue = new Value(currentIndexID, value, attributeName, this);
+            Value newValue = new Value(currentIndexID, value, attributeName);
             parent.allValues.add(newValue); // Add the value to its corresponding attributes ArrayList
             tableContents.get(columnIndex).add(newValue);
         }
         writeAttributesAndValuesToFile(); // Overwrite the file with the new values
     }
 
-
-    public void createValueFromFile(int attributeIndex, String value, int idIndex) throws IOException {
+    public void createValueFromFile(int attributeIndex, String value, int idIndex) {
         String attributeName = getAttributeNameFromIndex(attributeIndex);
         Attribute parent = getAttributeFromName(attributeName);
 
         // Create a new value and store it in tableContents & parent attributes ArrayList
-        Value newValue = new Value(idIndex, value, attributeName, this);
+        Value newValue = new Value(idIndex, value, attributeName);
         parent.allValues.add(newValue);
         tableContents.get(attributeIndex).add(newValue);  // Add as the next row in file
     }
@@ -128,7 +120,7 @@ public class Table {
     }
 
     public String getAttributeNameFromIndex(int columnIndex){
-        return tableContents.get(columnIndex).get(0).getAttributeName();
+        return tableContents.get(columnIndex).get(0).getDataAsString();
     }
 
     public void setTableFile(File file){
@@ -140,7 +132,7 @@ public class Table {
 
         for (ArrayList<Attribute> tableContent : tableContents) {
             for (Attribute attribute : tableContent) {
-                fileWriter.write(attribute.getAttributeName() + "\t");
+                fileWriter.write(attribute.getDataAsString() + "\t");
             }
         }
         fileWriter.write("\n");
@@ -172,5 +164,18 @@ public class Table {
             rowIndex++;
         }
         throw new IOException("No row with that ID exists in the table");
+    }
+
+    public void updateValue(String idIndex, String attributeName, String newValue) throws IOException {
+        int rowIndex = getRowIndexFromID(Integer.parseInt(idIndex));
+        int attributeIndex = getAttributeIndexFromName(attributeName);
+        // Update the appropriate value in table contents
+        tableContents.get(attributeIndex).get(rowIndex).setDataAsString(newValue);
+
+        Attribute parent = getAttributeFromName(attributeName);
+        // Update the appropriate value in parent attributes arraylist
+        parent.allValues.get(rowIndex-1).setDataAsString(newValue);
+
+        writeAttributesAndValuesToFile();
     }
 }
