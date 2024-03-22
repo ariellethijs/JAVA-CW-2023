@@ -13,6 +13,7 @@ public class ConditionProcessor {
         int rowIndex = currentTable.getRowIndexFromID(value.correspondingID);
         ArrayList<Attribute> valueRow = new ArrayList<>();
 
+        // Extract the current value's row from tableContents
         for (int colIndex = 0; colIndex < currentTable.tableContents.size(); colIndex++){
             if (rowIndex < currentTable.tableContents.get(colIndex).size()){
                 valueRow.add(currentTable.tableContents.get(colIndex).get(rowIndex)); // Add all the values in the same row
@@ -21,7 +22,9 @@ public class ConditionProcessor {
         return evaluateConditions(allConditions, valueRow);
     }
 
-    public boolean evaluateConditions(ArrayList<String> allConditions, ArrayList<Attribute> valueRow) throws IOException {
+    private boolean evaluateConditions(ArrayList<String> allConditions, ArrayList<Attribute> valueRow) throws IOException {
+
+        // If there are extra brackets around the condition which can be safely removed, remove them
         if (allConditions.get(0).equals("(") && allConditions.get(allConditions.size() - 1).equals(")")){
             if (canRemoveExtraneousBrackets(allConditions)){
                 allConditions = new ArrayList<>(allConditions.subList(1, allConditions.size() - 1));
@@ -29,12 +32,13 @@ public class ConditionProcessor {
             }
         }
 
-        int opIndex = findNextBooleanOperator(allConditions); // Finds the nested
-
-        if (opIndex == -1) {
-            return evaluateSimpleCondition(allConditions, valueRow); // No more booleanOperators left, determine the result of condition
+        // Find the first boolean operator which is not part of a nested condition
+        int opIndex = findNextBooleanOperator(allConditions);
+        if (opIndex == -1) { // If no such operator exists in current condition, call the simple evaluation method
+            return evaluateSimpleCondition(allConditions, valueRow);
         }
 
+        // Else store the operator for calculation
         String dividingOperator = allConditions.get(opIndex); // Store the operator
 
         // Store the separate conditions (could still be nested conditions within)
@@ -45,6 +49,7 @@ public class ConditionProcessor {
         boolean result1 = evaluateConditions(condition1, valueRow);
         boolean result2 = evaluateConditions(condition2, valueRow);
 
+        // Return result of the condition
         if (dividingOperator.equalsIgnoreCase("AND")){
             return (result1 && result2);
         } else if (dividingOperator.equalsIgnoreCase("OR")) {
@@ -54,12 +59,11 @@ public class ConditionProcessor {
         }
     }
 
-    public boolean canRemoveExtraneousBrackets(ArrayList<String> allConditions){
+    private boolean canRemoveExtraneousBrackets(ArrayList<String> allConditions){
         ArrayList<String> allConditionsWithoutOuterBrackets = new ArrayList<>(allConditions.subList(1, allConditions.size() - 1));
         ArrayList<String> brackets = new ArrayList<>();
 
         int openBracketCount = 0;
-
         // Determine whether brackets can be safely removed
         for (String condition : allConditionsWithoutOuterBrackets){
             if (condition.equals("(")){
@@ -73,7 +77,6 @@ public class ConditionProcessor {
         }
 
         boolean bracketsOrderCorrect = true;
-
         if (!brackets.isEmpty()){
             // If there's brackets left inside condition, check they're not left hanging
             bracketsOrderCorrect = !brackets.get(0).equals(")") && !brackets.get(brackets.size() - 1).equals("(");
@@ -82,7 +85,7 @@ public class ConditionProcessor {
         return (openBracketCount == 0 && bracketsOrderCorrect);
     }
 
-    public int findNextBooleanOperator(ArrayList<String> allConditions){
+    private int findNextBooleanOperator(ArrayList<String> allConditions){
         int bracketCount = 0; // To ensure that the boolean you process first is not one w/in a nested condition
         // E.g., for (condition AND condition) OR (condition AND condition), OR would be selected first
 
@@ -96,17 +99,24 @@ public class ConditionProcessor {
                 return index;
             }
         }
-        return -1;
+        return -1; // No more operators/there never were any
     }
 
-    public boolean evaluateSimpleCondition(ArrayList<String> condition, ArrayList<Attribute> valueRow) throws IOException {
+    private boolean evaluateSimpleCondition(ArrayList<String> condition, ArrayList<Attribute> valueRow) throws IOException {
         // Find the columnIndex the attribute resides in the table
+        // This index is the corresponding index of the valueRow which needs to be tested
         int attributeIndex = currentTable.getAttributeIndexFromName(condition.get(0));
-        // This index is the index of the valueRow which needs to be tested
+
+        // Assign elements of the condition their appropriate values
         String attributeValue = valueRow.get(attributeIndex).getDataAsString();
         String comparator = condition.get(1);
         String value = condition.get(2);
 
+        if (condition.get(0).equals(condition.get(2))){
+            throw new IOException("Cannot condition an attribute against itself");
+        }
+
+        // Switch the comparator with the most appropriate evaluation technique
         //noinspection EnhancedSwitchMigration
         switch (comparator.toUpperCase()) {
             case "==":
@@ -128,8 +138,8 @@ public class ConditionProcessor {
         }
     }
 
-    public boolean evaluateGreaterThan(String attributeValue, String value){
-        try {
+    private boolean evaluateGreaterThan(String attributeValue, String value){
+        try { // Try and find a numeric value, whilst ensuring server does not crash
             return Float.parseFloat(attributeValue) > Float.parseFloat(value);
         } catch (NumberFormatException e) {
             // Not a valid numeric comparison, return false
@@ -137,8 +147,8 @@ public class ConditionProcessor {
         }
     }
 
-    public boolean evaluateLessThan(String attributeValue, String value){
-        try {
+    private boolean evaluateLessThan(String attributeValue, String value){
+        try {  // Try and find a numeric value, whilst ensuring server does not crash
             return Float.parseFloat(attributeValue) < Float.parseFloat(value);
         } catch (NumberFormatException e) {
             // Not a valid numeric comparison, return false

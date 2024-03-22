@@ -71,7 +71,8 @@ public class Database {
     public void deleteTable(String tableName) throws IOException {
         Table table = getTableByName(tableName);
         File tableFile = getFileByTableName(tableName);
-        allTables.remove(table); // Remove from list
+        // Remove table and table file from lists
+        allTables.remove(table);
         allTableFiles.remove(tableFile);
 
         // Delete the table file from the file system

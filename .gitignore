@@ -15,7 +15,7 @@ dependency-reduced-pom.xml
 
 # IntelliJ IDEA
 /cw-db/.idea/
-/cw-db/.mvn/wrapper/
+
 
 # Temporary files
 *.log

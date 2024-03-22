@@ -14,13 +14,12 @@ public class Interpreter {
         this.currentSession = current;
         this.commands = commandTokens;
         this.index = 0;
-
-        this.responseRequired = false;
+        this.responseRequired = false; // Indicates whether a response table should be generated
         this.responseTable  = new ArrayList<>();
     }
 
     public void interpretCommand(int commandStartIndex) throws IOException {
-        this.index = commandStartIndex;
+        this.index = commandStartIndex; // Start at the next valid command to process
         String uppercaseCommand = commands[this.index].toUpperCase();
 
         switch (uppercaseCommand) {
@@ -33,11 +32,11 @@ public class Interpreter {
             case "UPDATE" -> executeUpdate();
             case "DELETE" -> executeDelete();
             case "JOIN" -> executeJoin();
-            default -> throw new IOException("Attempting to interpret unimplemented command");
+            default -> throw new IOException("Invalid command type");
         }
     }
 
-    public void executeUse() throws IOException {
+    private void executeUse() throws IOException {
         this.index++;
         if (currentSession.dbExists(commands[this.index])){
             Database currentDatabase = currentSession.getDatabaseByName(commands[this.index]);
@@ -47,9 +46,8 @@ public class Interpreter {
         }
     }
 
-    public void executeCreate() throws IOException {
-        this.index++;
-
+    private void executeCreate() throws IOException {
+        this.index++; // Skip past "CREATE"
         if (commands[this.index].equalsIgnoreCase("DATABASE")){
             executeCreateDatabase();
         } else if (commands[this.index].equalsIgnoreCase("TABLE")){
@@ -59,64 +57,76 @@ public class Interpreter {
         }
     }
 
-    public void executeCreateDatabase() throws IOException {
-        this.index++;
-        if (!currentSession.dbExists(commands[this.index])){
-            currentSession.createDatabase(commands[this.index]);
+    private void executeCreateDatabase() throws IOException {
+        this.index++; // Skip past "DATABASE"
+        if (!currentSession.dbExists(commands[this.index])){ // Check if database already exists
+            currentSession.createDatabase(commands[this.index]); // Create a database and directory
             currentSession.createDatabaseDirectory(commands[this.index]);
         } else {
-            throw new IOException("Cannot <CREATE> a database with a databaseName that already " +
-                    "exists within your file structure");
+            throw new IOException("Cannot <CREATE> a database with a databaseName that already exists");
         }
     }
 
-    public void executeCreateTable() throws IOException {
+    private void executeCreateTable() throws IOException {
         this.index++;
 
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null){
             throw new IOException("Cannot <CreateTable> as no database is currently selected");
-        } else if (!currentDatabase.tableExists(commands[this.index])){
-            Table currentTable = currentDatabase.createTable(commands[this.index], false);
-            currentDatabase.createTableFile(commands[this.index], currentTable);
-            this.index++;
-            if (commands[this.index].equals("(")){
-                this.index++;
-                ArrayList<String> addedValues = new ArrayList<>();
-                while (!commands[this.index].equals(")")){
-                    if (!commands[this.index].equals(",")){ // Skip over the commas in attribute list
-                        if (attributeHasNotAppearedYet(addedValues, commands[this.index], currentTable)){
-                            currentTable.createAttribute(commands[this.index]);
-                            addedValues.add(commands[this.index]);
-                        }
-                    }
-                    this.index++;
-                }
-                currentTable.writeAttributesToFile();
-            }
-        } else {
+        }
+
+        if (currentDatabase.tableExists(commands[this.index])) { // Check if table already exists
             throw new IOException("Cannot <CREATE> a table with a name that already exists within your current database");
+        }
+
+        String tableName = commands[this.index];
+        Table currentTable = currentDatabase.createTable(tableName, false);
+        currentDatabase.createTableFile(commands[this.index], currentTable);
+        this.index++;
+
+        if (commands[this.index].equals("(")){
+            this.index++;
+            storeAttributeList(currentDatabase, currentTable);
+        }
+        currentTable.writeAttributesToFile();
+    }
+
+    private void storeAttributeList(Database currentDatabase, Table currentTable) throws IOException {
+        ArrayList<String> addedValues = new ArrayList<>();
+        while (!commands[this.index].equals(")")){
+            if (commands[this.index].equals(",")){ this.index++; } // Skip over the commas in attribute list
+
+            if (attributeHasNotAppearedYet(addedValues, commands[this.index], currentTable)){
+                // Check the name is not a repeat
+                currentTable.createAttribute(commands[this.index]);
+                addedValues.add(commands[this.index]);
+            } else {
+                currentDatabase.deleteTable(currentTable.getTableName()); // Delete everything you created if you encounter an error
+                throw new IOException("An attribute with that name already exists in table");
+            }
+            this.index++;
         }
     }
 
-    public boolean attributeHasNotAppearedYet(ArrayList<String> addedValues, String attribute, Table currentTable) throws IOException {
+    private boolean attributeHasNotAppearedYet(ArrayList<String> addedValues, String attribute, Table currentTable) {
+        // Ensure no repeat attribute names
         if (currentTable.attributeExists(attribute)){
-            throw new IOException("Cannot create multiple columns with the same name");
+            return false;
         }
 
         if (!addedValues.isEmpty()){
             for (String s : addedValues){
                 if (attribute.equalsIgnoreCase(s)){
-                    throw new IOException("Cannot create multiple columns with the same name");
+                    return false;
                 }
             }
         }
         return true;
     }
 
-    public void executeDrop() throws IOException {
+    private void executeDrop() throws IOException {
         // "DROP " "DATABASE " [DatabaseName] | "DROP " "TABLE " [TableName]
-        this.index++;
+        this.index++; // Skip past "DROP"
         if (commands[this.index].equalsIgnoreCase("DATABASE")){
             executeDropDatabase();
         } else if (commands[this.index].equalsIgnoreCase("TABLE")){
@@ -126,30 +136,31 @@ public class Interpreter {
         }
     }
 
-    public void executeDropDatabase() throws IOException {
-        this.index++;
-        if (currentSession.dbExists(commands[this.index])){
+    private void executeDropDatabase() throws IOException {
+        this.index++; // Skip past "DATABASE"
+        if (currentSession.dbExists(commands[this.index])){ // Check for database existence
             currentSession.deleteDatabase(commands[this.index]);
         } else {
             throw new IOException("Cannot <DROP> a database which does not exist");
         }
     }
 
-    public void executeDropTable() throws IOException {
-        this.index++;
+    private void executeDropTable() throws IOException {
+        this.index++; // Skip past "TABLE"
 
         Database currentDatabase = currentSession.getDatabaseInUse();
-        if (currentDatabase == null) {
+        if (currentDatabase == null) { // Check a database in use
             throw new IOException("Cannot <DROP> table as no database is currently selected");
+        }
 
-        } else if (currentDatabase.tableExists(commands[this.index])){
-            currentDatabase.deleteTable(commands[this.index]);
+        if (currentDatabase.tableExists(commands[this.index])){ // Check table's existence
+            currentDatabase.deleteTable(commands[this.index]); // Delete the table
         } else {
             throw new IOException("Cannot <DROP> a table which does not exist");
         }
     }
 
-    public void executeAlter() throws IOException {
+    private void executeAlter() throws IOException {
         //  "ALTER " "TABLE " [TableName] " " <AlterationType> " " [AttributeName]
         this.index = this.index+2; // Skip "ALTER " "TABLE " safely as already parsed
 
@@ -170,35 +181,43 @@ public class Interpreter {
         }
     }
 
-    public void executeAlterAdd(Table currentTable) throws IOException {
+    private void executeAlterAdd(Table currentTable) throws IOException {
         String attributeName = commands[this.index];
-        if (!currentTable.attributeExists(attributeName)){
-            currentTable.createAttribute(attributeName);
+        checkForMultipleAlterationAttempts(this.index + 1); // Ensure no attempt at multiple alteration
+        if (!currentTable.attributeExists(attributeName)){ // Check such an attribute does not already exist
+            currentTable.createAttribute(attributeName); // Create new attribute
         } else {
             throw new IOException("Cannot <ALTER> a table by adding an attribute which already exist");
         }
     }
 
-    public void executeAlterDrop(Table currentTable) throws IOException {
+    private void executeAlterDrop(Table currentTable) throws IOException {
         String attributeName = commands[this.index];
-        if (currentTable.attributeExists(attributeName)){
+        checkForMultipleAlterationAttempts(this.index + 1); // Ensure no attempt at multiple alteration
+        if (currentTable.attributeExists(attributeName)){ // Ensure such an attribute does exist
             if (attributeName.equalsIgnoreCase("id")){
-                throw new IOException("Cannot <ALTER> the id column of a table");
+                throw new IOException("Cannot <ALTER> the id column of a table"); // Ensure no attempt to alter id column
             } else {
-                currentTable.deleteAttribute(attributeName);
+                currentTable.deleteAttribute(attributeName); // Delete the attribute
             }
         } else {
             throw new IOException("Cannot <ALTER> a table by dropping an attribute which does not exist");
         }
     }
 
-    public void executeInsert() throws IOException {
+    private void checkForMultipleAlterationAttempts(int nextIndex) throws IOException {
+        if (!commands[nextIndex].equals(";")){
+            throw new IOException("Cannot perform multiple <ALTER> commands at once");
+        }
+    }
+
+    private void executeInsert() throws IOException {
         // "INSERT " "INTO " [TableName] " VALUES" "(" <ValueList> ")"
         this.index = this.index+2; // Safely skip "INSERT " "INTO " as parsed successfully
         Table currentTable = findCurrentTable("<INSERT> into a table");
         this.index = this.index+3; // Navigate to first value in list by skipping " VALUES" & opening bracket
 
-        ArrayList<String> valuesInValueList = storeValuesInValueList(currentTable);
+        ArrayList<String> valuesInValueList = storeValuesInValueList(currentTable); // Store all values in commands
 
         if (!valuesInValueList.isEmpty()){
             currentTable.storeValueRow(valuesInValueList);
@@ -207,113 +226,111 @@ public class Interpreter {
         }
     }
 
-    public ArrayList<String> storeValuesInValueList(Table currentTable) throws IOException {
+    private ArrayList<String> storeValuesInValueList(Table currentTable) throws IOException {
         ArrayList<String> valuesInValueList = new ArrayList<>();
         while (!commands[this.index].equals(")")){
-            if (!commands[this.index].equals(",")){ // if not a comma, must be a value as already parsed
-                if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\''){
-                    // If the value is a string literal, remove the quotes before storing
-                    commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
-                }
-                valuesInValueList.add(commands[this.index]);
+            if (commands[this.index].equals(",")){ this.index++; } // Safely skip commas as already parsed
+            if (isStringLiteral(commands[this.index])){ // If the value is a string literal, remove the quotes before storing
+                commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
             }
+            valuesInValueList.add(commands[this.index]);
             this.index++;
         }
 
-        if ((valuesInValueList.size() + 1) > currentTable.getNumberOfAttributes()){
+        if ((valuesInValueList.size() + 1) > currentTable.tableContents.size()){
             throw new IOException("Cannot input more <VALUES> than there are attributes in the table");
         }
-        if ((valuesInValueList.size() + 1) < currentTable.getNumberOfAttributes()){
+        if ((valuesInValueList.size() + 1) < currentTable.tableContents.size()){
             throw new IOException("Cannot input less <VALUES> than there are attributes in the table");
         }
         return valuesInValueList;
     }
 
-    public String removeQuotesFromStringLiteral(String token){
+    private boolean isStringLiteral(String token){
+        return (token.charAt(0) == '\'' && token.charAt(token.length() - 1) == '\'');
+    }
+
+    private String removeQuotesFromStringLiteral(String token){
         return token.substring(1, token.length() - 1);
     }
 
-    public void executeSelect() throws IOException {
-        this.index++; // Skip "SELECT "
-        ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
+    private void executeSelect() throws IOException {
+        this.index++; // Skip past "SELECT"
 
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null) {
-            throw new IOException("Cannot <SELECT> from tables as no database is currently selected");
+            throw new IOException("Cannot <SELECT> as no database is currently selected");
         }
 
         ArrayList<Attribute> selectedAttributes = selectAttributes(currentDatabase);
-        Table currentTable = findCurrentTable("<SELECT> from table");
-        int nextIndex = this.index+1;
+        Table currentTable = currentDatabase.getTableByName(commands[this.index]);
 
-        if (selectedAttributes.isEmpty()){
-            throw new IOException("No valid attributes selected"); // FOR DEBUGGING DELETE LATER
-        } else if (commands[nextIndex].equalsIgnoreCase("WHERE")){
-            this.index = nextIndex+1; // Skip past where
+        ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
+        int nextIndex = this.index+1; // Check whether a conditioned select
+        if (commands[nextIndex].equalsIgnoreCase("WHERE")){
+            this.index = nextIndex+1; // Skip past "WHERE"
+            // Generate a response table based on the conditionedValues
             ArrayList<ArrayList<Attribute>> conditionedValues = conditionSelectedAttributes(selectedAttributes, currentTable);
             this.responseRequired = true;
             this.responseTable = responseGenerator.createConditionedResponseTable(conditionedValues);
         } else {
+            // Generate a response table of all values
             this.responseRequired = true;
             this.responseTable = responseGenerator.createUnconditionedResponseTable(selectedAttributes);
         }
     }
 
-    public ArrayList<Attribute> selectAttributes(Database currentDatabase) throws IOException {
-        boolean selectAll = false;
-
+    private ArrayList<Attribute> selectAttributes(Database currentDatabase) throws IOException {
         // Store wild attribute list
+        boolean selectAll = false;
         ArrayList<String> wildAttributeList = new ArrayList<>();
         while (!commands[this.index].equalsIgnoreCase("FROM")){
             if (commands[this.index].equals("*")){
                 selectAll = true; // Mark a select all command for simplicity
-                this.index++;
-            } else if (commands[this.index].equals(",")){
-                this.index++; // Skip commas
             } else {
-                wildAttributeList.add(commands[this.index]);
-                this.index++;
+                if (commands[this.index].equals(",")){ this.index++; } // Skip commas
+                wildAttributeList.add(commands[this.index]); // Store all attributes listed
             }
+            this.index++;
         }
         this.index++; // skip past "FROM"
 
-        ArrayList<Attribute> selectedAttributes = new ArrayList<>();
-        if (currentDatabase.tableExists(commands[this.index])){
-            Table currentTable = currentDatabase.getTableByName(commands[this.index]);
-
-            if (selectAll){
-                selectedAttributes = currentTable.getAllAttributes();
-            } else {
-                for (String attributeName : wildAttributeList){
-                    if (currentTable.attributeExists(attributeName)){
-                        selectedAttributes.add(currentTable.getAttributeFromName(attributeName));
-                    } else {
-                        throw new IOException("Cannot <SELECT> an attribute that does not exist");
-                    }
-                }
-                return selectedAttributes;
-            }
-        } else {
+        if (!currentDatabase.tableExists(commands[this.index])) {
             throw new IOException("Cannot <SELECT> from a table that does not exist");
         }
-        return selectedAttributes; // Should never reach this but just to silence compiler
+
+        Table currentTable = currentDatabase.getTableByName(commands[this.index]);
+        if (selectAll){
+            return currentTable.getAllAttributes();
+        } else {
+            ArrayList<Attribute> selectedAttributes = new ArrayList<>();
+            for (String attributeName : wildAttributeList){ // Ensure all attributes in list exist within table
+                if (currentTable.attributeExists(attributeName)){
+                    selectedAttributes.add(currentTable.getAttributeFromName(attributeName)); // Add them to selectedAttributes
+                } else {
+                    throw new IOException("Cannot <SELECT> an attribute that does not exist");
+                }
+            }
+            return selectedAttributes;
+        }
     }
 
-    public ArrayList<ArrayList<Attribute>> conditionSelectedAttributes(ArrayList<Attribute> selectedAttributes, Table currentTable) throws IOException {
+    private ArrayList<ArrayList<Attribute>> conditionSelectedAttributes(ArrayList<Attribute> selectedAttributes, Table currentTable) throws IOException {
         ArrayList<String> allConditions = storeConditions();
         ArrayList<ArrayList<Attribute>> conditionedValues = new ArrayList<>();
-        conditionedValues.add(selectedAttributes); // Add the attributes to the top row of the response table
+        // Add the attributes to the top row of the response table, so header row is always returned regardless of conditions
+        conditionedValues.add(selectedAttributes);
 
         for (Attribute attribute : selectedAttributes){
             int rowIndex = 1; // Reset to 1 (first row of values) for each column
-            for (Value value : attribute.allValues){
+            for (Value value : attribute.allValues){ // Add values to the response if they meet the conditions
                 ConditionProcessor conditionProcessor = new ConditionProcessor();
                 if (conditionProcessor.checkRowMeetsConditions(allConditions, value, currentTable)){
                     if (rowIndex >= conditionedValues.size()){ // Add a new row to arraylist if necessary
                         ArrayList<Attribute> row = new ArrayList<>();
                         conditionedValues.add(row);
                     }
-                    conditionedValues.get(rowIndex).add(value);
+                    conditionedValues.get(rowIndex).add(value); // Store the conditioned values in their appropriate arrangement
                     rowIndex++; // increment for each value in attribute that is selected and stored
                 }
             }
@@ -321,21 +338,20 @@ public class Interpreter {
         return conditionedValues;
     }
 
-    public ArrayList<String> storeConditions(){
+    private ArrayList<String> storeConditions(){
         ArrayList<String> allConditions = new ArrayList<>();
 
         while (!commands[this.index].equals(";")){
-            if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\'') {
-                // If the value is a string literal, remove the quotes before storing
+            if (isStringLiteral(commands[this.index])){ // If the value is a string literal, remove the quotes before storing
                 commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
             }
-            allConditions.add(commands[this.index]);
+            allConditions.add(commands[this.index]); // Add all condition strings to separate arraylist
             this.index++;
         }
         return allConditions;
     }
 
-    public void executeUpdate() throws IOException {
+    private void executeUpdate() throws IOException {
         // [TableName] " SET " <NameValueList> " WHERE " <Condition>
         this.index++; // Skip past "UPDATE"
         Table currentTable = findCurrentTable("<UPDATE> a table");
@@ -345,69 +361,70 @@ public class Interpreter {
         applyUpdates(nameValueList, currentTable);
     }
 
-    public ArrayList<String> storeNameValueList(){
+    private ArrayList<String> storeNameValueList(){
         // <NameValueList>   ::=  <NameValuePair> | <NameValuePair> "," <NameValueList>
-
         ArrayList<String> nameValueList = new ArrayList<>();
-
-        // Store all nameValuePairs
         while (!commands[this.index].equalsIgnoreCase("WHERE")){
-            if (commands[this.index].equals(",")){ this.index++; } // Skip the commas
-            if (commands[this.index].charAt(0) == '\'' && commands[this.index].charAt(commands[this.index].length() - 1) == '\'') {
+            if (commands[this.index].equals(",")){ this.index++; } // Skip past commas
+            if (isStringLiteral(commands[this.index])){
                 commands[this.index] = removeQuotesFromStringLiteral(commands[this.index]);
             }
-            nameValueList.add(commands[this.index]);
+            nameValueList.add(commands[this.index]); // Store all nameValuePairs
             this.index++;
         }
         return nameValueList;
     }
 
-    public void applyUpdates(ArrayList<String> nameValueList, Table currentTable) throws IOException {
+    private void applyUpdates(ArrayList<String> nameValueList, Table currentTable) throws IOException {
         Attribute idColumn = currentTable.getAttributeFromName("id");
         ArrayList<String> allConditions = storeConditions();
         ConditionProcessor conditionProcessor = new ConditionProcessor();
 
         for (int nameIndex = 0, valueIndex = 2; valueIndex < nameValueList.size(); nameIndex = nameIndex + 3, valueIndex = valueIndex + 3) {
-            for (Value id : idColumn.allValues) { // Check if each valueRow meets the conditions
-                if (conditionProcessor.checkRowMeetsConditions(allConditions, id, currentTable)){
-                    String attributeName = nameValueList.get(nameIndex);
-                    String newValue = nameValueList.get(valueIndex);
-                    if (!currentTable.attributeExists(attributeName)){
-                        throw new IOException("Cannot <UPDATE> an attribute that does not exist");
-                    } else if (attributeName.equalsIgnoreCase("id")){
-                        throw new IOException("Cannot <UPDATE> the id column of a table");
-                    } else {
-                        currentTable.updateValue(id.getDataAsString(), attributeName, newValue);
-                    }
+            for (Value id : idColumn.allValues) {
+                if (conditionProcessor.checkRowMeetsConditions(allConditions, id, currentTable)){ // Check if each valueRow meets the conditions
+                    String attributeName = nameValueList.get(nameIndex); // Get the attributeName of the current nameValuePair
+                    String newValue = nameValueList.get(valueIndex); // Get the reassigned value of the current nameValuePair
+                    checkValidityOfReassignment(currentTable, attributeName); // Check for invalid reassignments
+                    currentTable.updateValue(id.getDataAsString(), attributeName, newValue); // Reassign the corresponding value in attribute column
                 }
             }
         }
     }
 
-    public void executeDelete() throws IOException {
+    private void checkValidityOfReassignment(Table currentTable, String attributeName) throws IOException {
+        if (!currentTable.attributeExists(attributeName)){ // Ensure attribute exists
+            throw new IOException("Cannot <UPDATE> an attribute that does not exist");
+        } else if (attributeName.equalsIgnoreCase("id")) { // Ensure not an attempt to change id column
+            throw new IOException("Cannot <UPDATE> the id column of a table");
+        }
+    }
+
+    private void executeDelete() throws IOException {
         // "DELETE " "FROM " [TableName] " WHERE " <Condition>
         this.index = this.index+2; // Skip past "DELETE" & "FROM"
         Table currentTable = findCurrentTable("<DELETE> a table");
         this.index = this.index+2; // Skip past "WHERE" safely as already parsed
 
-        Attribute idColumnHeader = currentTable.getAttributeFromName("id");
         // Take a copy of column to avoid concurrent mod exception when modifying tableValues in the loop
+        Attribute idColumnHeader = currentTable.getAttributeFromName("id");
         ArrayList<Value> idColumnToModify = new ArrayList<>(idColumnHeader.allValues);
 
+        // Store allConditions applied to deletion
         ArrayList<String> allConditions = storeConditions();
         ConditionProcessor conditionProcessor = new ConditionProcessor();
 
         for (Value id : idColumnToModify) { // Check if each valueRow meets the conditions
             if (conditionProcessor.checkRowMeetsConditions(allConditions, id, currentTable)){
-                currentTable.deleteRow(id.getDataAsString());
+                currentTable.deleteRow(id.getDataAsString()); // Delete row if conditions satisfied
             }
         }
     }
 
-    public void executeJoin() throws IOException {
+    private void executeJoin() throws IOException {
         //"JOIN " [TableName] " AND " [TableName] " ON " [AttributeName] " AND " [AttributeName]
-        // performs an inner join on two tables (returning all permutations of all matching records)
 
+        // Assign the table objects and their corresponding attributes
         this.index++; // Skip "JOIN" to first table name
         Table table1 = findCurrentTable("<JOIN> a table");
         this.index = this.index+2; // Skip past "AND" to next table name
@@ -427,20 +444,21 @@ public class Interpreter {
 
         ArrayList<Attribute> selectedAttributes = selectAttributesToJoin(table1, table1Attribute);
         ArrayList<Attribute> table2SelectedAttributes = selectAttributesToJoin(table2, table2Attribute);
-        selectedAttributes.addAll(table2SelectedAttributes);
+        selectedAttributes.addAll(table2SelectedAttributes); // Combine all selected attributes from both tables
 
-        if (selectedAttributes.isEmpty()){
+        if (selectedAttributes.isEmpty()){ // Determine validity of selection
             throw new IOException("Cannot execute <JOIN> on tables without any attributes");
         }
 
         ResponseTableGenerator responseGenerator = new ResponseTableGenerator();
-        this.responseRequired = true;
+        this.responseRequired = true; // Generate the appropriate response table and the requirement of response
         this.responseTable = responseGenerator.createJoinedTable(selectedAttributes, t1Attribute, t2Attribute);
     }
 
-    public ArrayList<Attribute> selectAttributesToJoin(Table table, String attributeToJoin){
+    private ArrayList<Attribute> selectAttributesToJoin(Table table, String attributeToJoin){
         ArrayList<Attribute> selectedAttributes = new ArrayList<>();
 
+        // Select all attributes but the joining attribute and id column
         for (Attribute a : table.getAllAttributes()){
             if (!a.getDataAsString().equalsIgnoreCase("id") && !a.getDataAsString().equals(attributeToJoin)){
                 selectedAttributes.add(a);
@@ -449,17 +467,19 @@ public class Interpreter {
         return selectedAttributes;
     }
 
-    public Table findCurrentTable(String errorMessage) throws IOException {
+    private Table findCurrentTable(String errorMessage) throws IOException {
+        // Determine the current use of a database
         Database currentDatabase = currentSession.getDatabaseInUse();
         if (currentDatabase == null) {
             throw new IOException("Cannot " +errorMessage + " as no database is currently selected");
         }
 
+        // Determine desired table exists and is within selected database
         String tableName = commands[this.index];
         if (!currentDatabase.tableExists(tableName)) {
             throw new IOException("Cannot " +errorMessage + " which does not exist");
         }
-        return currentDatabase.getTableByName(tableName);
+        return currentDatabase.getTableByName(tableName); // Return the currentTable for querying
     }
 
 }

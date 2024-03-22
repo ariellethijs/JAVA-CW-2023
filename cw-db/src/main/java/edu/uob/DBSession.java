@@ -20,7 +20,7 @@ public class DBSession {
         storeDatabasesInDataFolder();
     }
 
-    public void storeDatabasesInDataFolder() throws IOException {
+    private void storeDatabasesInDataFolder() throws IOException {
         File directory = new File(storageFolderPath);
 
         // Get subdirectories (databases) in the main directory
@@ -38,32 +38,38 @@ public class DBSession {
 
     private void storeFilesInDatabaseDirectory(File databaseDirectory, Database currentDatabase) throws IOException {
         File[]databaseFiles = databaseDirectory.listFiles();
+        Parser parser = new Parser();
 
         if (databaseFiles != null){
             for (File databaseFile : databaseFiles){
-                if (databaseFile.isFile() && databaseFile.getName().endsWith(".tab")){
-                    String tableName = getNameWithoutExtension(databaseFile);
-                    if (!currentDatabase.tableExists(tableName)){ // Wouldn't really get here but just in case
+                if (databaseFile.isFile() && databaseFile.getName().endsWith(".tab")){ // Check the file format is correct
+                    String tableName = getNameWithoutExtension(databaseFile, parser); // Store the table name from fileName
+                    if (!tableName.isEmpty() && !currentDatabase.tableExists(tableName)){
+                        // Avoids reading in multiple files with the same name || invalid names
                         Table currentTable = currentDatabase.createTable(tableName, true);
-                        storeFile(databaseFile, currentTable);
+                        storeFile(databaseFile, currentTable); // Store the data in newly created table
                     }
                 }
             }
         }
     }
 
-    public String getNameWithoutExtension(File file) throws IOException {
+    private String getNameWithoutExtension(File file, Parser parser) throws IOException {
         String fileName = file.getName();
         int dotIndex = fileName.lastIndexOf('.');
         if (dotIndex > 0) {
-            return fileName.substring(0, dotIndex);
+            fileName = fileName.substring(0, dotIndex);
+            if (!parser.parsePlainText(fileName)){ // Parse the tableName to ensure its valid
+                return "";
+            } else {
+                return fileName;
+            }
         } else {
             throw new IOException("Attempting to read a file of invalid format");
-            // Should never reach this as checks for .tab files prior, but just in case
         }
     }
 
-    public void storeFile(File currentFile, Table currentTable) throws IOException {
+    private void storeFile(File currentFile, Table currentTable) throws IOException {
             BufferedReader reader = new BufferedReader(new FileReader(currentFile));
             String currentLine;
             boolean isHeaderLine = true;
@@ -78,24 +84,24 @@ public class DBSession {
             }
     }
 
-    public void storeAttributesFromFile(String[] attributes, Table currentTable) {
+    private void storeAttributesFromFile(String[] attributes, Table currentTable) {
         for (String attributeName : attributes){
             currentTable.createAttribute(attributeName);
         }
     }
 
-    public void storeValuesFromFile(String[] values, Table currentTable) throws IOException {
+    private void storeValuesFromFile(String[] values, Table currentTable) throws IOException {
         int rowID = -1;
         int columnIndex = 0;
         for (String value : values){
             if (columnIndex == 0){
-                rowID = Integer.parseInt(value); // Find the ID of the row you're on
+                rowID = Integer.parseInt(value); // Find the indexID of the file row you're on
                 if (rowID < 0) {
                     throw new IOException("id column is stored incorrectly in Table " + currentTable.getTableName());
                 }
                 currentTable.createValueFromFile(columnIndex, value, rowID);
             } else {
-                currentTable.createValueFromFile(columnIndex, value, rowID);
+                currentTable.createValueFromFile(columnIndex, value, rowID); // Store all values in file into table
             }
             columnIndex++;
         }
@@ -172,7 +178,7 @@ public class DBSession {
         } else {
             throw new IOException("Database directory not found: " + databaseDirectory.getAbsolutePath());
         }
-
+        // Remove directory and database from active storage
         allDatabaseDirectories.remove(databaseDirectory);
         allDatabases.remove(database);
     }
@@ -181,6 +187,7 @@ public class DBSession {
         if (!databaseDirectory.exists()) {
             return false;
         }
+
         File[] tableFiles = databaseDirectory.listFiles();
         if (tableFiles != null) {
             for (File tableFile : tableFiles) {

@@ -4,9 +4,8 @@ import java.util.ArrayList;
 
 public class Attribute {
     String name;
-    ArrayList<Value> allValues;
-
-    Table parent;
+    ArrayList<Value> allValues; // All values stored under attribute in table
+    Table parent; // Table it belongs to
 
     public Attribute(String attributeName, Table parentTable){
         this.name = attributeName;

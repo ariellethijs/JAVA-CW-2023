@@ -14,9 +14,7 @@ import java.util.ArrayList;
 public class DBServer {
     private static final char END_OF_TRANSMISSION = 4;
     private final String storageFolderPath;
-
     private DBSession currentSession;
-
 
     public static void main(String[] args) throws IOException {
         DBServer server = new DBServer();
@@ -34,12 +32,6 @@ public class DBServer {
         } catch(IOException ioe) {
             System.out.println("Can't seem to create database storage folder " + storageFolderPath);
         }
-
-        try {
-            this.currentSession = new DBSession(getStorageFolderPath());
-        } catch (IOException fileException){
-            System.out.println("[ERROR] " + fileException.getMessage());
-        }
     }
 
     /**
@@ -50,16 +42,25 @@ public class DBServer {
     */
     public String handleCommand(String command) {
 
+        if (this.currentSession == null){
+            try {
+                // create DBSession which initialises the database structure and reads in all files in storage
+                this.currentSession = new DBSession(getStorageFolderPath());
+            } catch (IOException fileException){
+                return ("[ERROR] " + fileException.getMessage());
+            }
+        }
+
         Tokeniser tokeniser = new Tokeniser();
         ArrayList<String> tokens = tokeniser.tokeniseInput(command);
 
         String[] commands = tokens.toArray(new String[0]);
 
-        Parser parser = new Parser(commands);
+        Parser parser = new Parser();
         Interpreter interpreter = new Interpreter(commands, this.currentSession);
 
         try {
-            parser.parseAllTokens();
+            parser.parseAllTokens(commands);
             ArrayList<Integer> validCommandsStartIndexes = parser.validCommandStartingIndexes;
 
             for (Integer startIndex : validCommandsStartIndexes){
