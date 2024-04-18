@@ -1,7 +1,15 @@
 .DS_Store
+pom.xml
+mvnw
+mvnw.cmd
+.mvn/
+/cw-stag/config/
+/cw-stag/libs/
 
 # Maven target directory
 /cw-db/target/
+/cw-stag/target/
+
 
 # Compiled bytecode
 *.class
@@ -14,7 +22,7 @@ dependency-reduced-pom.xml
 /cw-db/databases/
 
 # IntelliJ IDEA
-/cw-db/.idea/
+.idea/
 
 
 # Temporary files
