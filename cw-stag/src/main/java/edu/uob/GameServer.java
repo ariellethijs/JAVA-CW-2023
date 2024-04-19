@@ -5,7 +5,9 @@ import com.alexmerz.graphviz.Parser;
 import com.alexmerz.graphviz.objects.Edge;
 import com.alexmerz.graphviz.objects.Graph;
 import com.alexmerz.graphviz.objects.Node;
+import org.xml.sax.SAXException;
 
+import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -15,6 +17,7 @@ import java.util.HashMap;
 
 public final class GameServer {
     private HashMap<String, Location> gameLayout;
+    private ArrayList<GameAction> possibleActions;
 
     private static final char END_OF_TRANSMISSION = 4;
 
@@ -33,17 +36,16 @@ public final class GameServer {
     * @param actionsFile The game configuration file containing all game actions to use in your game
     */
     public GameServer(File entitiesFile, File actionsFile) {
-        // TODO implement your server logic here
-
         try {
             DotFileReader entityFileReader = new DotFileReader();
             entityFileReader.openAndReadEntityFile(entitiesFile);
             gameLayout = entityFileReader.getGameLocations();
-        } catch (IOException e){
+
+            XMLFileReader actionFileReader = new XMLFileReader(actionsFile);
+            possibleActions = actionFileReader.getAllGameActions();
+        } catch (IOException | ParserConfigurationException | SAXException e){
             System.out.println(e.getMessage());
         }
-
-
 
 
     }

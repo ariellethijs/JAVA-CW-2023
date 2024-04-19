@@ -23,7 +23,7 @@ dependency-reduced-pom.xml
 
 # IntelliJ IDEA
 .idea/
-
+*.iml
 
 # Temporary files
 *.log
