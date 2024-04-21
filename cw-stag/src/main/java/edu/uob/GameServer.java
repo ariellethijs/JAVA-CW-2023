@@ -16,9 +16,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public final class GameServer {
-    private HashMap<String, Location> gameLayout;
-    private ArrayList<GameAction> possibleActions;
 
+    CommandHandler commandHandler;
     private static final char END_OF_TRANSMISSION = 4;
 
     public static void main(String[] args) throws IOException {
@@ -39,19 +38,16 @@ public final class GameServer {
         try {
             DotFileReader entityFileReader = new DotFileReader();
             entityFileReader.openAndReadEntityFile(entitiesFile);
-            gameLayout = entityFileReader.getGameLocations();
+            HashMap<String, Location> gameLayout = entityFileReader.getGameLocations();
+            String startLocationName = entityFileReader.getStartLocation();
 
             XMLFileReader actionFileReader = new XMLFileReader(actionsFile);
-            possibleActions = actionFileReader.getAllGameActions();
-        } catch (IOException | ParserConfigurationException | SAXException e){
+            ArrayList<GameAction> possibleActions = actionFileReader.getAllGameActions();
+            commandHandler = new CommandHandler(gameLayout, possibleActions, startLocationName);
+        } catch (IOException | ParserConfigurationException | SAXException e) {
             System.out.println(e.getMessage());
         }
-
-
     }
-
-
-
 
 
     /**
@@ -61,8 +57,13 @@ public final class GameServer {
     * @param command The incoming command to be processed
     */
     public String handleCommand(String command) {
-        // TODO implement your server logic here
-        return "";
+        try {
+            String response = commandHandler.handleBuiltInCommand(command);
+            System.out.println(response);
+            return response;
+        } catch (Exception e){
+            return "ERROR" + e.getMessage();
+        }
     }
 
     /**

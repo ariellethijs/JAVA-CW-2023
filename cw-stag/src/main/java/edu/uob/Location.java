@@ -25,6 +25,14 @@ public class Location extends GameEntity {
 
     void addPathDestination(String toLocation){ pathsTo.add(toLocation); }
 
+    HashMap<String,Artefact> getLocationArtefacts(){ return locationArtefacts; }
+
+    HashMap<String, Furniture> getLocationFurniture(){ return locationFurniture; }
+
+    HashMap<String, Character> getLocationCharacters(){ return locationCharacters; }
+
+    ArrayList<String> getPathsTo(){ return pathsTo; }
+
     void printContents(){ // For debugging
         System.out.println("Location name = " +getName());
         System.out.println("Description = " +getDescription());

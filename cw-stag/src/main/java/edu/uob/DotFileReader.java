@@ -13,9 +13,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
-public class DotFileReader {
+public class DotFileReader extends GameFileReader {
     HashMap<String, Location> gameLocations;
     FileReader entityFileReader;
+
+    String startLocationName;
 
     DotFileReader(){
         gameLocations = new HashMap<>();
@@ -45,8 +47,16 @@ public class DotFileReader {
     }
 
     public void storeLocations(ArrayList<Graph> locations){
+        boolean firstItem = true;
+
         for (Graph location : locations){
             String locationName = location.getNodes(false).get(0).getId().getId();
+
+            if (firstItem){ // Store the name of the first location in the dot file
+                startLocationName = locationName;
+                firstItem = false;
+            }
+
             String locationDescription = location.getNodes(false).get(0).getAttribute("description");
             ArrayList<Graph> locationContents = location.getSubgraphs();
 
@@ -88,4 +98,5 @@ public class DotFileReader {
     }
 
     protected HashMap<String, Location> getGameLocations(){ return gameLocations; }
+    protected String getStartLocation(){ return startLocationName; }
 }

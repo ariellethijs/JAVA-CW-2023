@@ -13,7 +13,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 
-public class XMLFileReader {
+public class XMLFileReader extends GameFileReader {
     ArrayList<GameAction> allGameActions;
 
     XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
@@ -34,16 +34,16 @@ public class XMLFileReader {
         }
     }
 
-    GameAction storeActionContents(Element action){
-        ArrayList<String> triggers = storeSubElementValues(action,"triggers");
-        ArrayList<String> subjects = storeSubElementValues(action, "subjects");
-        String consumedEntityName = storeSubElementValues(action, "consumed").get(0);
-        String producedEntityName = storeSubElementValues(action, "produced").get(0);
-        String narration = storeSubElementValues(action,"narration").get(0);
+    GameAction storeActionContents(Element action) throws IOException {
+        ArrayList<String> triggers = storeSubElementValues(action,"triggers", false);
+        ArrayList<String> subjects = storeSubElementValues(action, "subjects", false);
+        String consumedEntityName = storeSubElementValues(action, "consumed", true).get(0);
+        String producedEntityName = storeSubElementValues(action, "produced", true).get(0);
+        String narration = storeSubElementValues(action,"narration", false).get(0);
         return new GameAction(triggers, subjects, consumedEntityName, producedEntityName, narration);
     }
 
-    ArrayList<String> storeSubElementValues(Element action, String tagName){
+    ArrayList<String> storeSubElementValues(Element action, String tagName, boolean optional) throws IOException {
         ArrayList<String> subElementKeyPhrases = new ArrayList<>();
 
         Node subElement = action.getElementsByTagName(tagName).item(0);
@@ -51,10 +51,10 @@ public class XMLFileReader {
 
         for (int i = 0; i < childNodes.getLength(); i++){
             Node childNode = childNodes.item(i);
-            String keyPhraseAsString = childNode.getTextContent().trim();
-            if (!keyPhraseAsString.isEmpty()){
-                subElementKeyPhrases.add(keyPhraseAsString);
-            } else if (childNodes.getLength() == 1){
+            String nodeText = childNode.getTextContent().trim();
+            if (!nodeText.isEmpty() && !checkIfKeyword(nodeText)){
+                subElementKeyPhrases.add(nodeText);
+            } else if (childNodes.getLength() == 1 && optional){
                 subElementKeyPhrases.add("");
             }
         }
