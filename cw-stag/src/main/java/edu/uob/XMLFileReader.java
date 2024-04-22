@@ -16,11 +16,11 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public class XMLFileReader extends GameFileReader {
-    ArrayList<GameAction> allGameActions;
-//    HashMap<String, HashSet<GameAction>> allGameActions;
+   // ArrayList<GameAction> allGameActions;
+   HashMap<String, HashSet<GameAction>> allGameActions;
 
     XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
-        allGameActions = new ArrayList<>();
+        allGameActions = new HashMap<>();
         openAndReadActionsFile(actionsFile);
     }
 
@@ -33,15 +33,26 @@ public class XMLFileReader extends GameFileReader {
 
         for (int i = 0; i < actions.getLength(); i++){
             Element action = (Element)actions.item(i);
-            allGameActions.add(storeActionContents(action));
+            ArrayList<String> triggers = storeSubElementValues(action,"triggers", false);
+            GameAction currentAction = storeActionContents(action, triggers);
+            for (String trigger : triggers){
+                trigger = trigger.toLowerCase();
+                if (allGameActions.containsKey(trigger)){
+                    HashSet<GameAction> actionSet = allGameActions.get(trigger);
+                    actionSet.add(currentAction);
+                } else {
+                    HashSet<GameAction> newActionSet = new HashSet<>();
+                    newActionSet.add(currentAction);
+                    allGameActions.put(trigger, newActionSet);
+                }
+            }
         }
     }
 
-    GameAction storeActionContents(Element action) throws IOException {
-        ArrayList<String> triggers = storeSubElementValues(action,"triggers", false);
+    GameAction storeActionContents(Element action, ArrayList<String> triggers) throws IOException {
         ArrayList<String> subjects = storeSubElementValues(action, "subjects", false);
-        String consumedEntityName = storeSubElementValues(action, "consumed", true).get(0);
-        String producedEntityName = storeSubElementValues(action, "produced", true).get(0);
+        ArrayList<String> consumedEntityName = storeSubElementValues(action, "consumed", true);
+        ArrayList<String> producedEntityName = storeSubElementValues(action, "produced", true);
         String narration = storeSubElementValues(action,"narration", false).get(0);
         return new GameAction(triggers, subjects, consumedEntityName, producedEntityName, narration);
     }
@@ -64,6 +75,6 @@ public class XMLFileReader extends GameFileReader {
         return subElementKeyPhrases;
     }
 
-    ArrayList<GameAction> getAllGameActions(){ return allGameActions; }
+    HashMap<String, HashSet<GameAction>> getAllGameActions(){ return allGameActions; }
 
 }

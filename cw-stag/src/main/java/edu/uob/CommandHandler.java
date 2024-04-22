@@ -3,25 +3,21 @@ package edu.uob;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public class CommandHandler {
-
     HashMap<String, Location> gameLayout;
-
-    ArrayList<GameAction> possibleActions;
+    HashMap<String, HashSet<GameAction>> possibleActions;
     GamePlayer currentPlayer;
-
     Location startLocation;
-
     HashMap<String, GamePlayer> allPlayers;
     int playerIndex;
-
     int tokenIndex;
 
 
     String[] command;
 
-    CommandHandler(HashMap<String, Location> layout, ArrayList<GameAction> actions, String firstLocation){
+    CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
         gameLayout = layout;
         possibleActions = actions;
         startLocation = gameLayout.get(firstLocation);

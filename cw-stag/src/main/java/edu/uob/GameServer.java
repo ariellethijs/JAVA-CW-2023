@@ -8,6 +8,7 @@ import java.net.Socket;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 
 public final class GameServer {
 
@@ -36,7 +37,7 @@ public final class GameServer {
             String startLocationName = entityFileReader.getStartLocation();
 
             XMLFileReader actionFileReader = new XMLFileReader(actionsFile);
-            ArrayList<GameAction> possibleActions = actionFileReader.getAllGameActions();
+            HashMap<String, HashSet<GameAction>> possibleActions = actionFileReader.getAllGameActions();
             commandHandler = new CommandHandler(gameLayout, possibleActions, startLocationName);
         } catch (IOException | ParserConfigurationException | SAXException e) {
             System.out.println(e.getMessage());
