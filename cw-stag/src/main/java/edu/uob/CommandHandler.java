@@ -1,7 +1,6 @@
 package edu.uob;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -13,8 +12,6 @@ public class CommandHandler {
     HashMap<String, GamePlayer> allPlayers;
     int playerIndex;
     int tokenIndex;
-
-
     String[] command;
 
     CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
@@ -32,19 +29,14 @@ public class CommandHandler {
         currentPlayer = determineCommandPlayer(command[tokenIndex]);
         tokenIndex++;
 
-        switch (command[tokenIndex].toLowerCase()){
-            case "inventory":
-            case "inv":
-                return processInventory();
-            case "look":
-                return processLook();
-            case "get":
-                return processGet();
-            case "drop":
-                return processDrop();
-        }
-        return "";
-
+        return switch (command[tokenIndex].toLowerCase()) {
+            case "inventory", "inv" -> processInventory();
+            case "look" -> processLook();
+            case "get" -> processGetOrDrop("get");
+            case "drop" -> processGetOrDrop("drop");
+            case "goto" -> processGoTo();
+            default -> "";
+        };
     }
 
     GamePlayer determineCommandPlayer(String name) throws IOException {
@@ -100,37 +92,69 @@ public class CommandHandler {
         return String.valueOf(response);
     }
 
-    String processGet() throws IOException {
+    String processGetOrDrop(String commandType) throws IOException {
         if (tokenIndex < command.length){
             tokenIndex++;
             String potentialKey = command[tokenIndex].toLowerCase();
             Location currentLocation = currentPlayer.getCurrentLocation();
 
-            if (!currentLocation.getLocationArtefacts().containsKey(potentialKey)){
-                if (currentLocation.getLocationFurniture().containsKey(potentialKey)){
-                    throw new IOException("Player cannot pick up items of furniture!");
-                } else if (currentLocation.getLocationCharacters().containsKey(potentialKey)){
-                    throw new IOException("Player cannot pick up game characters!");
-                } else {
-                    throw new IOException("There is no " +potentialKey + " in that player's current location");
-                }
+            if (commandType.equals("get")){
+                return pickUpItem(potentialKey);
+            } else if (currentPlayer.getInventory().containsKey(potentialKey)){
+                Artefact artefactToMove = currentPlayer.getInventory().get(potentialKey);
+                currentLocation.addArtefactToLocation(artefactToMove);
+                currentPlayer.removeFromInventory(artefactToMove);
+                return currentPlayer.getName() + " dropped the " +command[tokenIndex];
             } else {
-                if (tokenIndex+1 < command.length){
-                    throw new IOException("Players cannot pick up multiple items at once!");
-                } else {
-                    Artefact artefactToMove = currentLocation.getLocationArtefacts().get(potentialKey);
-                    currentLocation.removeEntity(artefactToMove);
-                    currentPlayer.addToInventory(artefactToMove);
-                    return currentPlayer.getName() + " picked up the " +command[tokenIndex];
-                }
+                throw new IOException("No such artefact in " +currentPlayer.getName() + "'s inventory!");
             }
         } else {
-            throw new IOException("Player must specify which artefact they wish to pick up");
+            throw new IOException("Player must specify which artefact they are referring to");
         }
     }
 
-    String processDrop() throws IOException {
-        return "";
+    String pickUpItem(String itemKey) throws IOException {
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        if (!currentLocation.getLocationArtefacts().containsKey(itemKey)){
+            if (currentLocation.getLocationFurniture().containsKey(itemKey)){
+                throw new IOException("Player cannot pick up items of furniture!");
+            } else if (currentLocation.getLocationCharacters().containsKey(itemKey)){
+                throw new IOException("Player cannot pick up game characters!");
+            } else {
+                throw new IOException("There is no " +itemKey + " in that player's current location");
+            }
+        } else {
+            if (tokenIndex+1 < command.length){
+                throw new IOException("Players cannot pick up multiple items at once!");
+            } else {
+                Artefact artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
+                currentLocation.removeEntity(artefactToMove);
+                currentPlayer.addToInventory(artefactToMove);
+                return currentPlayer.getName() + " picked up the " +command[tokenIndex];
+            }
+        }
     }
+
+    String processGoTo() throws IOException {
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        if (tokenIndex < command.length) {
+            tokenIndex++;
+            String potentialDestination = command[tokenIndex].toLowerCase();
+
+            if (gameLayout.containsKey(potentialDestination)){
+                if (currentLocation.getPathsTo().contains(potentialDestination)){
+                    currentPlayer.setLocation(gameLayout.get(potentialDestination));
+                    return currentLocation.getName() + " moved to " +potentialDestination + " from " +currentLocation.getName();
+                } else {
+                    throw new IOException("There's no path to " +potentialDestination + " from " +currentLocation.getName());
+                }
+            } else {
+                throw new IOException("There is no " +command[tokenIndex] + " in the game!");
+            }
+        } else {
+            throw new IOException("Must specify the destination you wish to go to!");
+        }
+    }
+
 
 }

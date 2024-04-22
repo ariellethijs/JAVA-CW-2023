@@ -13,5 +13,9 @@ public class GamePlayer extends Character {
 
     void addToInventory(Artefact a){ currentInventory.put(a.getName().toLowerCase(), a); }
 
+    void removeFromInventory(Artefact a){ currentInventory.remove(a.getName().toLowerCase()); }
+
+    void setLocation(Location newLocation){ currentLocation = newLocation; }
+
     HashMap<String, Artefact> getInventory(){ return currentInventory; }
 }
