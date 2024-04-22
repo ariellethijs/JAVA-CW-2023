@@ -12,9 +12,12 @@ import javax.xml.parsers.ParserConfigurationException;
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 
 public class XMLFileReader extends GameFileReader {
     ArrayList<GameAction> allGameActions;
+//    HashMap<String, HashSet<GameAction>> allGameActions;
 
     XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
         allGameActions = new ArrayList<>();

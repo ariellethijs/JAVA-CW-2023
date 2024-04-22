@@ -1,10 +1,4 @@
 package edu.uob;
-
-import com.alexmerz.graphviz.ParseException;
-import com.alexmerz.graphviz.Parser;
-import com.alexmerz.graphviz.objects.Edge;
-import com.alexmerz.graphviz.objects.Graph;
-import com.alexmerz.graphviz.objects.Node;
 import org.xml.sax.SAXException;
 
 import javax.xml.parsers.ParserConfigurationException;
@@ -61,7 +55,7 @@ public final class GameServer {
             String response = commandHandler.handleBuiltInCommand(command);
             System.out.println(response);
             return response;
-        } catch (Exception e){
+        } catch (IOException e){
             return "ERROR" + e.getMessage();
         }
     }

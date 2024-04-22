@@ -5,7 +5,7 @@ import java.util.HashMap;
 
 public class Location extends GameEntity {
 
-    HashMap<String,Artefact> locationArtefacts;
+    HashMap<String, Artefact> locationArtefacts;
     HashMap<String, Furniture> locationFurniture;
     HashMap<String, Character> locationCharacters;
     ArrayList<String> pathsTo;
@@ -17,13 +17,21 @@ public class Location extends GameEntity {
         locationCharacters = new HashMap<>();
     }
 
-    void addArtefactToLocation(Artefact a){ locationArtefacts.put(a.getName(), a); }
+    void addArtefactToLocation(Artefact a){ locationArtefacts.put(a.getName().toLowerCase(), a); }
 
-    void addFurnitureToLocation(Furniture f){ locationFurniture.put(f.getName(), f); }
+    void addFurnitureToLocation(Furniture f){ locationFurniture.put(f.getName().toLowerCase(), f); }
 
-    void addCharacterToLocation(Character c){ locationCharacters.put(c.getName(), c); }
+    void addCharacterToLocation(Character c){ locationCharacters.put(c.getName().toLowerCase(), c); }
 
     void addPathDestination(String toLocation){ pathsTo.add(toLocation); }
+
+    void removeEntity(GameEntity entity){
+        if (entity instanceof Artefact){
+            locationArtefacts.remove(entity.getName().toLowerCase());
+        } else if (entity instanceof Character){
+            locationCharacters.remove(entity.getName().toLowerCase());
+        }
+    }
 
     HashMap<String,Artefact> getLocationArtefacts(){ return locationArtefacts; }
 
@@ -33,7 +41,7 @@ public class Location extends GameEntity {
 
     ArrayList<String> getPathsTo(){ return pathsTo; }
 
-    void printContents(){ // For debugging
+    void printContents(){
         System.out.println("Location name = " +getName());
         System.out.println("Description = " +getDescription());
 
