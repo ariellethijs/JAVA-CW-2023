@@ -83,6 +83,41 @@ class ExampleSTAGTests {
       // Test multiple players separate locations
       sendCommandToServer("Tom: goto forest");
       assertTrue(sendCommandToServer("Tom: look").contains("forest"));
+      assertFalse(sendCommandToServer("Kisshan: look").contains("forest"));
+  }
+
+  @Test
+    void testInvalidInbuiltCommands(){
+      // No command key word:
+        assertEquals(sendCommandToServer("Tom: Kisshan"), "Try entering a valid command next time");
+
+      // Multiple command keywords:
+        assertEquals(sendCommandToServer("Kisshan: look goto"), "Cannot process multiple commands at once");
+
+      // Get command tests:
+        // Attempting furniture pickup:
+        assertEquals(sendCommandToServer("Kisshan: get trapdoor"), "Player cannot pick up items of furniture!");
+        // Attempting pickup of an item not in the location:
+        assertEquals(sendCommandToServer("Kisshan: get hammer"), "There is no hammer in Kisshan's current location");
+        // Attempting multiple item pickup:
+        assertEquals(sendCommandToServer("Kisshan: get potion axe"), "Players cannot pick up multiple items at once!");
+
+      // Drop command tests:
+        // No item specified:
+        assertEquals(sendCommandToServer("Kisshan: drop"), "Player must specify which artefact they are referring to");
+        // Item player doesn't have:
+        assertEquals(sendCommandToServer("Kisshan: drop axe"), "No axe in Kisshan's inventory!");
+        // Item another player has:
+        sendCommandToServer("Tom: get potion");
+        assertEquals(sendCommandToServer("Kisshan: drop potion"), "No potion in Kisshan's inventory!");
+
+      // Goto command tests:
+        // No destination specified:
+        assertEquals(sendCommandToServer("Kisshan: goto"), "Player must specify the destination they wish to go to!");
+        // No location with that name:
+        assertEquals(sendCommandToServer("Kisshan: goto library"), "There is no library nearby!");
+        // No path to location from current location:
+        assertEquals(sendCommandToServer("Kisshan: goto cellar"), "There's no path to cellar from cabin");
   }
 
 }

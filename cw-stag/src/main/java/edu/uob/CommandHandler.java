@@ -13,6 +13,10 @@ public class CommandHandler {
     int playerIndex;
     int tokenIndex;
     String[] command;
+    String[] commandKeywords = { "inventory",
+            "get", "drop", "goto",
+            "look"
+    };
 
     CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
         gameLayout = layout;
@@ -24,18 +28,30 @@ public class CommandHandler {
     }
 
     String handleBuiltInCommand(String incomingCommand) throws IOException {
-        tokenIndex = 0;
-        command = incomingCommand.trim().split("\\s+");
-        currentPlayer = determineCommandPlayer(command[tokenIndex]);
-        tokenIndex++;
+        if (checkForMultipleKeywords(incomingCommand)){
+            throw new IOException("Cannot process multiple commands at once");
+        } else {
+            tokenIndex = 0;
+            command = incomingCommand.trim().split("\\s+");
+            currentPlayer = determineCommandPlayer(command[tokenIndex]);
+            tokenIndex++;
 
-        return switch (command[tokenIndex].toLowerCase()) {
-            case "inventory", "inv" -> processInventory();
-            case "look" -> processLook();
-            case "get", "drop" -> processGetOrDrop(command[tokenIndex].toLowerCase());
-            case "goto" -> processGoTo();
-            default -> processGameAction();
-        };
+            return switch (command[tokenIndex].toLowerCase()) {
+                case "inventory", "inv" -> processInventory();
+                case "look" -> processLook();
+                case "get", "drop" -> processGetOrDrop(command[tokenIndex].toLowerCase());
+                case "goto" -> processGoTo();
+                default -> processGameAction();
+            };
+        }
+    }
+
+    boolean checkForMultipleKeywords(String command){
+        int keywordCount = 0;
+        for (String keyword : commandKeywords){
+            if (command.contains(keyword)){ keywordCount++; }
+        }
+        return (keywordCount > 1);
     }
 
     GamePlayer determineCommandPlayer(String name) throws IOException {
@@ -101,7 +117,7 @@ public class CommandHandler {
     }
 
     String processGetOrDrop(String commandType) throws IOException {
-        if (tokenIndex < command.length){
+        if (tokenIndex < (command.length-1)){
             tokenIndex++;
             String potentialKey = command[tokenIndex].toLowerCase();
             Location currentLocation = currentPlayer.getCurrentLocation();
@@ -114,7 +130,7 @@ public class CommandHandler {
                 currentPlayer.removeFromInventory(artefactToMove);
                 return currentPlayer.getName() + " dropped the " +command[tokenIndex] + "\n";
             } else {
-                throw new IOException("No such artefact in " +currentPlayer.getName() + "'s inventory!");
+                throw new IOException("No " +potentialKey + " in " +currentPlayer.getName() + "'s inventory!");
             }
         } else {
             throw new IOException("Player must specify which artefact they are referring to");
@@ -129,7 +145,7 @@ public class CommandHandler {
             } else if (currentLocation.getLocationCharacters().containsKey(itemKey)){
                 throw new IOException("Player cannot pick up game characters!");
             } else {
-                throw new IOException("There is no " +itemKey + " in that player's current location");
+                throw new IOException("There is no " +itemKey + " in " +currentPlayer.getName()+ "'s current location");
             }
         } else {
             if (tokenIndex+1 < command.length){
@@ -145,7 +161,7 @@ public class CommandHandler {
 
     String processGoTo() throws IOException {
         Location currentLocation = currentPlayer.getCurrentLocation();
-        if (tokenIndex < command.length) {
+        if (tokenIndex < (command.length-1)) {
             tokenIndex++;
             String potentialDestination = command[tokenIndex].toLowerCase();
 
@@ -157,15 +173,19 @@ public class CommandHandler {
                     throw new IOException("There's no path to " +potentialDestination + " from " +currentLocation.getName());
                 }
             } else {
-                throw new IOException("There is no " +command[tokenIndex] + " in the game!");
+                throw new IOException("There is no " +command[tokenIndex] + " nearby!");
             }
         } else {
-            throw new IOException("Must specify the destination you wish to go to!");
+            throw new IOException("Player must specify the destination they wish to go to!");
         }
     }
 
-    String processGameAction(){
-        return "";
+    String processGameAction() throws IOException {
+        if (possibleActions.containsKey(command[tokenIndex].toLowerCase())){
+            return "";
+        } else {
+            throw new IOException("Try entering a valid command next time");
+        }
     }
 
 
