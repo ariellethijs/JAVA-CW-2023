@@ -1,14 +1,13 @@
 package edu.uob;
 
-import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.nio.file.Paths;
 import java.io.IOException;
 import java.time.Duration;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class ExampleSTAGTests {
 
@@ -64,6 +63,26 @@ class ExampleSTAGTests {
       assertTrue(response.contains("key"), "Failed attempt to use 'goto' command to move to the forest - there is no key in the current location");
   }
 
-  // Add more unit tests or integration tests here.
+  @Test
+  void testPlayerIdentification(){
+      // Missing player name
+      assertEquals("Expecting a player name at the start of command", sendCommandToServer("inv"));
+      // Missing :
+      assertEquals("Expecting a player name at the start of command", sendCommandToServer("Tom inventory"));
+
+      // Test case-insensitive player name storage
+      sendCommandToServer("Kisshan: get potion");
+      assertTrue(sendCommandToServer("kisshan: inv").contains("potion"));
+
+      // Test for separate player inventories and item removal from location
+      sendCommandToServer("Tom: get axe");
+      assertTrue(sendCommandToServer("Tom: inv").contains("axe"));
+      assertFalse(sendCommandToServer("Tom: inv").contains("potion"));
+      assertFalse(sendCommandToServer("Tom: look").contains("axe") || sendCommandToServer("Tom: look").contains("potion"));
+
+      // Test multiple players separate locations
+      sendCommandToServer("Tom: goto forest");
+      assertTrue(sendCommandToServer("Tom: look").contains("forest"));
+  }
 
 }

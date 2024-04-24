@@ -32,10 +32,9 @@ public class CommandHandler {
         return switch (command[tokenIndex].toLowerCase()) {
             case "inventory", "inv" -> processInventory();
             case "look" -> processLook();
-            case "get" -> processGetOrDrop("get");
-            case "drop" -> processGetOrDrop("drop");
+            case "get", "drop" -> processGetOrDrop(command[tokenIndex].toLowerCase());
             case "goto" -> processGoTo();
-            default -> "";
+            default -> processGameAction();
         };
     }
 
@@ -58,9 +57,10 @@ public class CommandHandler {
 
     String processInventory(){
         if (!currentPlayer.getInventory().isEmpty()){
-            StringBuilder response = new StringBuilder(currentPlayer.getName() + "'s inventory: \n");
-            for (Artefact a : currentPlayer.getInventory().values()){
-                response.append(a.getName()).append(" ").append(a.getDescription()).append("\n");
+            StringBuilder response = new StringBuilder("[" + currentPlayer.getName().toUpperCase() + "'S INVENTORY]\n");
+            for (GameEntity entity : currentPlayer.getInventory().values()){
+                response.append("      ");
+                response = appendEntityDescription(response, entity);
             }
             return String.valueOf(response);
         } else {
@@ -71,25 +71,33 @@ public class CommandHandler {
     String processLook(){
         Location currentLocation = currentPlayer.getCurrentLocation();
 
-        StringBuilder response = new StringBuilder(currentLocation.getName() + " " + currentLocation.getDescription() + "\n");
+        StringBuilder response = new StringBuilder("[" + currentLocation.getName().toUpperCase() + "] " + currentLocation.getDescription() + "\n");
 
-        for (Artefact a : currentLocation.getLocationArtefacts().values()) {
-            response.append(a.getName()).append(" ").append(a.getDescription()).append("\n");
+        response = iterateThroughLocationEntities(response, currentLocation.getLocationArtefacts());
+        response = iterateThroughLocationEntities(response, currentLocation.getLocationFurniture());
+        response = iterateThroughLocationEntities(response, currentLocation.getLocationCharacters());
+
+        if (!currentLocation.getPathsTo().isEmpty()){
+            response.append("[PATHS]\n");
         }
-
-        for (Furniture f : currentLocation.getLocationFurniture().values()){
-            response.append(f.getName()).append(" ").append(f.getDescription()).append("\n");
-        }
-
-        for (Character c : currentLocation.getLocationCharacters().values()) {
-            response.append(c.getName()).append(" ").append(c.getDescription()).append("\n");
-        }
-
         for (String path : currentLocation.getPathsTo()){
-            response.append(currentLocation.getName()).append(" --> ").append(path).append("\n");
+            response.append("     ").append("[").append(currentLocation.getName().toUpperCase()).append("] --> [").append(path.toUpperCase()).append("]\n");
         }
 
         return String.valueOf(response);
+    }
+
+    StringBuilder iterateThroughLocationEntities(StringBuilder response, HashMap<String, GameEntity> entityMap){
+        String indentation = "     ";
+        for (GameEntity entity : entityMap.values()){
+            response.append(indentation);
+            response = appendEntityDescription(response, entity);
+        }
+        return response;
+    }
+
+    StringBuilder appendEntityDescription(StringBuilder response, GameEntity entity){
+        return response.append("[").append(entity.getName().toUpperCase()).append("] ").append(entity.getDescription()).append("\n");
     }
 
     String processGetOrDrop(String commandType) throws IOException {
@@ -101,10 +109,10 @@ public class CommandHandler {
             if (commandType.equals("get")){
                 return pickUpItem(potentialKey);
             } else if (currentPlayer.getInventory().containsKey(potentialKey)){
-                Artefact artefactToMove = currentPlayer.getInventory().get(potentialKey);
-                currentLocation.addArtefactToLocation(artefactToMove);
+                GameEntity artefactToMove = currentPlayer.getInventory().get(potentialKey);
+                currentLocation.addArtefactToLocation((Artefact)artefactToMove);
                 currentPlayer.removeFromInventory(artefactToMove);
-                return currentPlayer.getName() + " dropped the " +command[tokenIndex];
+                return currentPlayer.getName() + " dropped the " +command[tokenIndex] + "\n";
             } else {
                 throw new IOException("No such artefact in " +currentPlayer.getName() + "'s inventory!");
             }
@@ -127,10 +135,10 @@ public class CommandHandler {
             if (tokenIndex+1 < command.length){
                 throw new IOException("Players cannot pick up multiple items at once!");
             } else {
-                Artefact artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
+                GameEntity artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
                 currentLocation.removeEntity(artefactToMove);
                 currentPlayer.addToInventory(artefactToMove);
-                return currentPlayer.getName() + " picked up the " +command[tokenIndex];
+                return currentPlayer.getName() + " picked up the " +command[tokenIndex] + "\n";
             }
         }
     }
@@ -144,7 +152,7 @@ public class CommandHandler {
             if (gameLayout.containsKey(potentialDestination)){
                 if (currentLocation.getPathsTo().contains(potentialDestination)){
                     currentPlayer.setLocation(gameLayout.get(potentialDestination));
-                    return currentLocation.getName() + " moved to " +potentialDestination + " from " +currentLocation.getName();
+                    return currentPlayer.getName() + " moved to " +potentialDestination + " from " +currentLocation.getName() + "\n";
                 } else {
                     throw new IOException("There's no path to " +potentialDestination + " from " +currentLocation.getName());
                 }
@@ -154,6 +162,10 @@ public class CommandHandler {
         } else {
             throw new IOException("Must specify the destination you wish to go to!");
         }
+    }
+
+    String processGameAction(){
+        return "";
     }
 
 

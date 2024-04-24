@@ -57,7 +57,7 @@ public final class GameServer {
             System.out.println(response);
             return response;
         } catch (IOException e){
-            return "ERROR" + e.getMessage();
+            return e.getMessage();
         }
     }
 

@@ -4,18 +4,18 @@ import java.util.HashMap;
 
 public class GamePlayer extends Character {
 
-    HashMap<String, Artefact> currentInventory;
+    HashMap<String, GameEntity> currentInventory;
 
     GamePlayer(String name, int index, Location location){
         super(name, "Player " + index, location);
         currentInventory = new HashMap<>();
     }
 
-    void addToInventory(Artefact a){ currentInventory.put(a.getName().toLowerCase(), a); }
+    void addToInventory(GameEntity entity){ currentInventory.put(entity.getName().toLowerCase(), entity); }
 
-    void removeFromInventory(Artefact a){ currentInventory.remove(a.getName().toLowerCase()); }
+    void removeFromInventory(GameEntity entity){ currentInventory.remove(entity.getName().toLowerCase()); }
 
     void setLocation(Location newLocation){ currentLocation = newLocation; }
 
-    HashMap<String, Artefact> getInventory(){ return currentInventory; }
+    HashMap<String, GameEntity> getInventory(){ return currentInventory; }
 }
