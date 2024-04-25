@@ -13,9 +13,11 @@ public class GamePlayer extends Character {
 
     void addToInventory(GameEntity entity){ currentInventory.put(entity.getName().toLowerCase(), entity); }
 
-    void removeFromInventory(GameEntity entity){ currentInventory.remove(entity.getName().toLowerCase()); }
+    void removeFromInventory(String entityName){ currentInventory.remove(entityName); }
 
     void setLocation(Location newLocation){ currentLocation = newLocation; }
 
     HashMap<String, GameEntity> getInventory(){ return currentInventory; }
+
+    boolean checkInventoryContains(String artefactName){ return (currentInventory.containsKey(artefactName.toLowerCase())); }
 }

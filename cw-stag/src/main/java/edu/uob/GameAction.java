@@ -8,33 +8,20 @@ public class GameAction
 {
     ArrayList<String> actionTriggers;
     ArrayList<String> actionSubjects;
-
-    ArrayList<String> consumedEntity;
-    ArrayList<String> producedEntity;
+    ArrayList<String> consumedEntities;
+    ArrayList<String> producedEntities;
     String narration;
 
     GameAction(ArrayList<String> triggers, ArrayList<String> subjects, ArrayList<String> consumed, ArrayList<String> produced, String narrationString){
         actionTriggers = triggers;
         actionSubjects = subjects;
-        consumedEntity = consumed;
-        producedEntity = produced;
+        consumedEntities = consumed;
+        producedEntities = produced;
         narration = narrationString;
     }
 
-//    void printContents(){
-//        System.out.println("Triggers: ");
-//        for (String t : actionTriggers){
-//            System.out.println(t);
-//        }
-//
-//        System.out.println("Subjects: ");
-//        for (String s : actionSubjects){
-//            System.out.println(s);
-//        }
-//
-//        System.out.println("Consumed = " +consumedEntity);
-//        System.out.println("Produced = " +producedEntity);
-//        System.out.println("Narration = " +narration);
-//
-//    }
+    ArrayList<String> getActionSubjects(){ return actionSubjects; }
+    ArrayList<String> getConsumedEntities(){ return consumedEntities; }
+    ArrayList<String> getProducedEntities(){ return producedEntities; }
+    String getNarration(){ return narration; }
 }

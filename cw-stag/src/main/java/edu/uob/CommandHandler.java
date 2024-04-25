@@ -1,6 +1,7 @@
 package edu.uob;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -28,6 +29,8 @@ public class CommandHandler {
     }
 
     String handleBuiltInCommand(String incomingCommand) throws IOException {
+        incomingCommand = incomingCommand.toLowerCase();
+
         if (checkForMultipleKeywords(incomingCommand)){
             throw new IOException("Cannot process multiple commands at once");
         } else {
@@ -41,7 +44,7 @@ public class CommandHandler {
                 case "look" -> processLook();
                 case "get", "drop" -> processGetOrDrop(command[tokenIndex].toLowerCase());
                 case "goto" -> processGoTo();
-                default -> processGameAction();
+                default -> processGameAction(incomingCommand);
             };
         }
     }
@@ -127,7 +130,7 @@ public class CommandHandler {
             } else if (currentPlayer.getInventory().containsKey(potentialKey)){
                 GameEntity artefactToMove = currentPlayer.getInventory().get(potentialKey);
                 currentLocation.addArtefactToLocation((Artefact)artefactToMove);
-                currentPlayer.removeFromInventory(artefactToMove);
+                currentPlayer.removeFromInventory(artefactToMove.getName());
                 return currentPlayer.getName() + " dropped the " +command[tokenIndex] + "\n";
             } else {
                 throw new IOException("No " +potentialKey + " in " +currentPlayer.getName() + "'s inventory!");
@@ -152,7 +155,7 @@ public class CommandHandler {
                 throw new IOException("Players cannot pick up multiple items at once!");
             } else {
                 GameEntity artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
-                currentLocation.removeEntity(artefactToMove);
+                currentLocation.removeEntity(artefactToMove, false);
                 currentPlayer.addToInventory(artefactToMove);
                 return currentPlayer.getName() + " picked up the " +command[tokenIndex] + "\n";
             }
@@ -180,13 +183,95 @@ public class CommandHandler {
         }
     }
 
-    String processGameAction() throws IOException {
-        if (possibleActions.containsKey(command[tokenIndex].toLowerCase())){
-            return "";
+    String processGameAction(String incomingCommand) throws IOException {
+        String triggerPhrase = determineActionTrigger();
+        if (!triggerPhrase.isEmpty()){
+            GameAction validAction = determineAction(possibleActions.get(triggerPhrase), incomingCommand);
+            executeConsumedEntities(validAction.getConsumedEntities());
+            executeProducedEntities(validAction.getProducedEntities());
+            return validAction.getNarration();
         } else {
             throw new IOException("Try entering a valid command next time");
         }
     }
 
+    String determineActionTrigger() throws IOException {
+        String triggerPhrase = "";
+        int triggerPhraseCount = 0;
+        for (String token : command){
+            if (possibleActions.containsKey(token.toLowerCase())){
+                triggerPhraseCount++;
+                triggerPhrase = token;
+            }
+        }
+        if (!(triggerPhraseCount > 1)){
+            return triggerPhrase.toLowerCase();
+        } else {
+            throw new IOException("Cannot process multiple commands at once");
+        }
+    }
+
+    GameAction determineAction(HashSet<GameAction> actions, String incomingCommand) throws IOException {
+        for (GameAction action : actions){
+            if (checkSubjectsInCommand(action, incomingCommand) && checkSubjectsInLocation(action)){
+                return action;
+            }
+        }
+        throw new IOException("Subjects for that action aren't present");
+    }
+
+    boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
+        for (String subject : action.getActionSubjects()){
+            System.out.println("Checking if " +subject + " is present in the command");
+            if (!(incomingCommand.contains(subject.toLowerCase()))){
+                System.out.println(subject + " was not present in the command");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    boolean checkSubjectsInLocation(GameAction action){
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        for (String subject : action.getActionSubjects()){
+            System.out.println("Checking if " +subject + " is present in the current location");
+            if (!((currentLocation.checkEntityPresent(subject)) || (currentPlayer.checkInventoryContains(subject)))){
+                System.out.println(subject + " was not present in the current location");
+                return false;
+            }
+        }
+        return true;
+    }
+
+    void executeConsumedEntities(ArrayList<String> consumed){
+        Location currentLocation = currentPlayer.getCurrentLocation();
+        for (String consumedEntity : consumed){
+            if (currentLocation.checkEntityPresent(consumedEntity)){
+                GameEntity entityToRemove = currentLocation.determineEntityFromName(consumedEntity);
+                System.out.println("Removing " +entityToRemove.getName() + " from current location");
+                currentLocation.removeEntity(entityToRemove, true);
+            } else {
+                currentPlayer.removeFromInventory(consumedEntity);
+            }
+        }
+    }
+
+    void executeProducedEntities(ArrayList<String> produced) throws IOException {
+        Location storeRoom = gameLayout.get("storeroom");
+        Location currentLocation = currentPlayer.getCurrentLocation();
+
+        for (String producedName : produced){
+            if (storeRoom.checkEntityPresent(producedName)){
+                GameEntity producedEntity = storeRoom.determineEntityFromName(producedName);
+                storeRoom.removeEntity(producedEntity, true);
+                currentLocation.addEntity(producedEntity);
+            } else if (gameLayout.containsKey(producedName)){
+                currentLocation.addPathDestination(producedName);
+            } else {
+                throw new IOException ("Couldn't find the produced entity"); // FOR DEBUGGING
+            }
+        }
+
+    }
 
 }

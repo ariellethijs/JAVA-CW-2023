@@ -120,4 +120,20 @@ class ExampleSTAGTests {
         assertEquals(sendCommandToServer("Kisshan: goto cellar"), "There's no path to cellar from cabin");
   }
 
+  @Test
+    void testBasicAction(){
+      sendCommandToServer("Tom: get axe");
+      sendCommandToServer("Tom: goto forest");
+      assertEquals(sendCommandToServer("Tom: please chop the tree with the axe"), "You cut down the tree with the axe");
+      assertTrue(sendCommandToServer("Tom: look").contains("log"));
+      assertFalse(sendCommandToServer("Tom: look").contains("tree"));
+      assertTrue(sendCommandToServer("Tom: inv").contains("axe"));
+
+      sendCommandToServer("Tom: get key");
+      sendCommandToServer("Tom: goto cabin");
+      assertEquals(sendCommandToServer("Tom: unlock trapdoor with key"), "You unlock the trapdoor and see steps leading down into a cellar");
+      assertTrue(sendCommandToServer("Tom: look").contains("CELLAR"));
+      assertFalse(sendCommandToServer("Tom: inventory").contains("key"));
+  }
+
 }
