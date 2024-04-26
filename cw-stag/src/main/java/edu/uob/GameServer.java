@@ -39,7 +39,7 @@ public final class GameServer {
             HashMap<String, HashSet<GameAction>> possibleActions = actionFileReader.getAllGameActions();
             commandHandler = new CommandHandler(gameLayout, possibleActions, startLocationName);
         } catch (IOException | ParserConfigurationException | SAXException e) {
-            System.out.println(e.getMessage());
+            System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
         }
     }
 
@@ -53,10 +53,11 @@ public final class GameServer {
     public String handleCommand(String command) {
         try {
             String response = commandHandler.handleBuiltInCommand(command);
-            System.out.println(response);
-            return response;
+            System.out.println(response); // FOR DEBUGGING REMOVE L8R
+            return response + "\n";
         } catch (IOException e){
-            return e.getMessage();
+            System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
+            return e.getMessage() + "\n";
         }
     }
 

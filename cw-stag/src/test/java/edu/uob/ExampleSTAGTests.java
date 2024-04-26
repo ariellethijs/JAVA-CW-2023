@@ -4,7 +4,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import java.io.File;
 import java.nio.file.Paths;
-import java.io.IOException;
 import java.time.Duration;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -41,8 +40,7 @@ class ExampleSTAGTests {
 
   // Test that we can pick something up and that it appears in our inventory
   @Test
-  void testGet()
-  {
+  void testGet(){
       String response;
       sendCommandToServer("simon: get potion");
       response = sendCommandToServer("simon: inv");
@@ -55,8 +53,7 @@ class ExampleSTAGTests {
 
   // Test that we can goto a different location (we won't get very far if we can't move around the game !)
   @Test
-  void testGoto()
-  {
+  void testGoto() {
       sendCommandToServer("simon: goto forest");
       String response = sendCommandToServer("simon: look");
       response = response.toLowerCase();
@@ -66,12 +63,13 @@ class ExampleSTAGTests {
   @Test
   void testPlayerIdentification(){
       // Missing player name
-      assertEquals("Expecting a player name at the start of command", sendCommandToServer("inv"));
+      assertTrue(sendCommandToServer("inv").contains("Not sure whose playing - start with your name next time"));
       // Missing :
-      assertEquals("Expecting a player name at the start of command", sendCommandToServer("Tom inventory"));
+      assertTrue(sendCommandToServer("Tom inventory").contains("Not sure whose playing - start with your name next time"));
 
       // Test case-insensitive player name storage
       sendCommandToServer("Kisshan: get potion");
+      sendCommandToServer("Kisshan: health");
       assertTrue(sendCommandToServer("kisshan: inv").contains("potion"));
 
       // Test for separate player inventories and item removal from location
@@ -89,51 +87,86 @@ class ExampleSTAGTests {
   @Test
     void testInvalidInbuiltCommands(){
       // No command key word:
-        assertEquals(sendCommandToServer("Tom: Kisshan"), "Try entering a valid command next time");
+        assertTrue(sendCommandToServer("Tom: Kisshan").contains("Not sure what you mean - try a valid command next time"));
 
       // Multiple command keywords:
-        assertEquals(sendCommandToServer("Kisshan: look goto"), "Cannot process multiple commands at once");
+        assertTrue(sendCommandToServer("Kisshan: look goto").contains("Player can't multi-task - enter one command at a time"));
 
       // Get command tests:
         // Attempting furniture pickup:
-        assertEquals(sendCommandToServer("Kisshan: get trapdoor"), "Player cannot pick up items of furniture!");
+        assertTrue(sendCommandToServer("Kisshan: get trapdoor").contains("kisshan tries to pick up the trapdoor but it seems to be fixed in place - players cannot pick up items of furniture"));
         // Attempting pickup of an item not in the location:
-        assertEquals(sendCommandToServer("Kisshan: get hammer"), "There is no hammer in Kisshan's current location");
+        assertTrue(sendCommandToServer("Kisshan: get hammer").contains("kisshan isn't sure what you mean - be more specific"));
         // Attempting multiple item pickup:
-        assertEquals(sendCommandToServer("Kisshan: get potion axe"), "Players cannot pick up multiple items at once!");
+        assertTrue(sendCommandToServer("Kisshan: get potion axe").contains("kisshan can't multi-task - only handle one object at a time"));
 
       // Drop command tests:
         // No item specified:
-        assertEquals(sendCommandToServer("Kisshan: drop"), "Player must specify which artefact they are referring to");
+        assertTrue(sendCommandToServer("Kisshan: drop").contains("kisshan isn't sure what you mean - be more specific"));
         // Item player doesn't have:
-        assertEquals(sendCommandToServer("Kisshan: drop axe"), "No axe in Kisshan's inventory!");
+        assertTrue(sendCommandToServer("Kisshan: drop axe").contains("kisshan can''t see a axe in their inventory - try running inventory or inv to see contents"));
         // Item another player has:
         sendCommandToServer("Tom: get potion");
-        assertEquals(sendCommandToServer("Kisshan: drop potion"), "No potion in Kisshan's inventory!");
+        assertTrue(sendCommandToServer("Kisshan: get potion").contains("kisshan isn't sure what you mean - be more specific"));
 
       // Goto command tests:
         // No destination specified:
-        assertEquals(sendCommandToServer("Kisshan: goto"), "Player must specify the destination they wish to go to!");
+        assertTrue(sendCommandToServer("Kisshan: goto").contains("kisshan isn't sure where you want to go - be more specific"));
         // No location with that name:
-        assertEquals(sendCommandToServer("Kisshan: goto library"), "There is no library nearby!");
+        assertTrue(sendCommandToServer("Kisshan: goto library").contains("kisshan isn't sure where you want to go - be more specific"));
         // No path to location from current location:
-        assertEquals(sendCommandToServer("Kisshan: goto cellar"), "There's no path to cellar from cabin");
+        assertTrue(sendCommandToServer("Kisshan: goto cellar").contains("kisshan can't see a way to cellar from here - try running look to see available paths"));
   }
 
   @Test
     void testBasicAction(){
       sendCommandToServer("Tom: get axe");
+      sendCommandToServer("Tom: get potion");
       sendCommandToServer("Tom: goto forest");
-      assertEquals(sendCommandToServer("Tom: please chop the tree with the axe"), "You cut down the tree with the axe");
+      assertTrue(sendCommandToServer("Tom: please chop the tree with the axe").contains("You cut down the tree with the axe"));
       assertTrue(sendCommandToServer("Tom: look").contains("log"));
       assertFalse(sendCommandToServer("Tom: look").contains("tree"));
       assertTrue(sendCommandToServer("Tom: inv").contains("axe"));
 
       sendCommandToServer("Tom: get key");
       sendCommandToServer("Tom: goto cabin");
-      assertEquals(sendCommandToServer("Tom: unlock trapdoor with key"), "You unlock the trapdoor and see steps leading down into a cellar");
+      assertTrue(sendCommandToServer("Tom: unlock trapdoor with key").contains("You unlock the trapdoor and see steps leading down into a cellar"));
       assertTrue(sendCommandToServer("Tom: look").contains("CELLAR"));
       assertFalse(sendCommandToServer("Tom: inventory").contains("key"));
+
+      // Test health loss/gain and player death
+      sendCommandToServer("Tom: goto cellar");
+      assertTrue(sendCommandToServer("Tom: look").contains("ELF"));
+      assertTrue(sendCommandToServer("Tom: attack elf").contains("You attack the elf, but he fights back and you lose some health"));
+      assertTrue(sendCommandToServer("Tom: health").contains("2"));
+      assertTrue(sendCommandToServer("Tom: drink potion").contains("You drink the potion and your health improves"));
+      assertTrue(sendCommandToServer("Tom: health").contains("3"));
+      sendCommandToServer("Tom: attack elf");
+      sendCommandToServer("Tom: attack elf");
+      assertTrue(sendCommandToServer("Tom: attack elf").contains("tom died and lost all of their items"));
+      assertTrue(sendCommandToServer("Tom: look").contains("CABIN"));
+      assertTrue(sendCommandToServer("Tom: health").contains("3"));
+      assertTrue(sendCommandToServer("Tom: inv").contains("empty"));
+  }
+
+  @Test
+    void testEdgeCaseBasicAction(){
+      sendCommandToServer("Tom: get axe");
+      sendCommandToServer("Tom: goto forest");
+
+      // Invalid composite commands
+      assertTrue(sendCommandToServer("Tom: Chop tree and get key").contains("Player can't multi-task - enter one command at a time"));
+
+      // Different word order && decorated syntax
+      assertTrue(sendCommandToServer("Tom: please use the axe to chop the tree").contains("You cut down the tree with the axe"));
+
+      sendCommandToServer("Tom: get key");
+      sendCommandToServer("Tom: goto cabin");
+
+      // Invalid partial command
+      assertTrue(sendCommandToServer("Tom: unlock").contains("tom isn't sure what to do - be more specific"));
+      // Valid partial command
+      assertTrue(sendCommandToServer("Tom: unlock trapdoor").contains("You unlock the trapdoor and see steps leading down into a cellar"));
   }
 
 }

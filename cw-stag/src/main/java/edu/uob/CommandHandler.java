@@ -9,14 +9,16 @@ public class CommandHandler {
     HashMap<String, Location> gameLayout;
     HashMap<String, HashSet<GameAction>> possibleActions;
     GamePlayer currentPlayer;
+    Location currentLocation;
     Location startLocation;
     HashMap<String, GamePlayer> allPlayers;
     int playerIndex;
     int tokenIndex;
     String[] command;
-    String[] commandKeywords = { "inventory",
-            "get", "drop", "goto",
-            "look"
+    String[] commandKeywords = {
+            "inv", //"inventory",
+            "get", "drop",
+            "goto", "look", "health"
     };
 
     CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
@@ -30,31 +32,46 @@ public class CommandHandler {
 
     String handleBuiltInCommand(String incomingCommand) throws IOException {
         incomingCommand = incomingCommand.toLowerCase();
+        command = incomingCommand.trim().split("\\s+");
+        String commandKeyword = determineCommandKeyword(incomingCommand);
+        currentPlayer = determineCommandPlayer(command[0]);
+        currentLocation = currentPlayer.getCurrentLocation();
 
-        if (checkForMultipleKeywords(incomingCommand)){
-            throw new IOException("Cannot process multiple commands at once");
-        } else {
-            tokenIndex = 0;
-            command = incomingCommand.trim().split("\\s+");
-            currentPlayer = determineCommandPlayer(command[tokenIndex]);
-            tokenIndex++;
-
-            return switch (command[tokenIndex].toLowerCase()) {
-                case "inventory", "inv" -> processInventory();
-                case "look" -> processLook();
-                case "get", "drop" -> processGetOrDrop(command[tokenIndex].toLowerCase());
-                case "goto" -> processGoTo();
-                default -> processGameAction(incomingCommand);
-            };
-        }
+        return switch (commandKeyword) {
+            case "inventory", "inv" -> processInventory();
+            case "look" -> processLook();
+            case "get", "drop" -> processGetOrDrop(commandKeyword);
+            case "goto" -> processGoTo();
+            case "health" -> currentPlayer.getName() + "'s health: " +currentPlayer.getHealth();
+            default -> processGameAction(incomingCommand);
+        };
     }
 
-    boolean checkForMultipleKeywords(String command){
+    String determineCommandKeyword(String incomingCommand) throws IOException {
         int keywordCount = 0;
+        String commandPhrase = "";
+
         for (String keyword : commandKeywords){
-            if (command.contains(keyword)){ keywordCount++; }
+            if (incomingCommand.contains(keyword)){
+                commandPhrase = keyword;
+                keywordCount++;
+            }
         }
-        return (keywordCount > 1);
+
+        int possibleActionCount = 0;
+        for (String token : command){
+            if (possibleActions.containsKey(token)){
+                possibleActionCount++;
+            }
+        }
+
+        if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount == 1))){
+            return commandPhrase;
+        } else if (keywordCount == 0 && possibleActionCount == 0) {
+cd             throw new IOException("\nNot sure what you mean - try a valid command next time");
+        } else {
+            throw new IOException("\nPlayer can't multi-task - enter one command at a time");
+        }
     }
 
     GamePlayer determineCommandPlayer(String name) throws IOException {
@@ -67,50 +84,52 @@ public class CommandHandler {
                 playerIndex++;
                 GamePlayer newPlayer = new GamePlayer(name, playerIndex, startLocation);
                 allPlayers.put(nameAsKey, newPlayer);
+                startLocation.addCharacterToLocation(newPlayer);
                 return newPlayer;
             }
         } else {
-            throw new IOException("Expecting a player name at the start of command");
+            throw new IOException("Not sure whose playing - start with your name next time");
         }
     }
 
     String processInventory(){
         if (!currentPlayer.getInventory().isEmpty()){
-            StringBuilder response = new StringBuilder("[" + currentPlayer.getName().toUpperCase() + "'S INVENTORY]\n");
+            StringBuilder response = new StringBuilder("\n[" + currentPlayer.getName().toUpperCase() + "'S INVENTORY]\n");
             for (GameEntity entity : currentPlayer.getInventory().values()){
                 response.append("      ");
                 response = appendEntityDescription(response, entity);
             }
             return String.valueOf(response);
         } else {
-            return currentPlayer.getName() + "'s inventory is empty";
+            return "\n" + currentPlayer.getName() + "'s inventory is empty";
         }
     }
 
     String processLook(){
         Location currentLocation = currentPlayer.getCurrentLocation();
 
-        StringBuilder response = new StringBuilder("[" + currentLocation.getName().toUpperCase() + "] " + currentLocation.getDescription() + "\n");
+        StringBuilder response = new StringBuilder("\n[" + currentLocation.getName().toUpperCase() + "] " + currentLocation.getDescription() + "\n");
 
         response = iterateThroughLocationEntities(response, currentLocation.getLocationArtefacts());
         response = iterateThroughLocationEntities(response, currentLocation.getLocationFurniture());
         response = iterateThroughLocationEntities(response, currentLocation.getLocationCharacters());
 
         if (!currentLocation.getPathsTo().isEmpty()){
-            response.append("[PATHS]\n");
+            response.append("\n[PATHS]");
         }
         for (String path : currentLocation.getPathsTo()){
-            response.append("     ").append("[").append(currentLocation.getName().toUpperCase()).append("] --> [").append(path.toUpperCase()).append("]\n");
+            response.append("\n     ").append("[").append(currentLocation.getName().toUpperCase()).append("] --> [").append(path.toUpperCase()).append("]");
         }
-
         return String.valueOf(response);
     }
 
     StringBuilder iterateThroughLocationEntities(StringBuilder response, HashMap<String, GameEntity> entityMap){
         String indentation = "     ";
         for (GameEntity entity : entityMap.values()){
-            response.append(indentation);
-            response = appendEntityDescription(response, entity);
+            if (!entity.getName().equals(currentPlayer.getName())){ // Skip over the current player when looking
+                response.append(indentation);
+                response = appendEntityDescription(response, entity);
+            }
         }
         return response;
     }
@@ -120,78 +139,117 @@ public class CommandHandler {
     }
 
     String processGetOrDrop(String commandType) throws IOException {
-        if (tokenIndex < (command.length-1)){
-            tokenIndex++;
-            String potentialKey = command[tokenIndex].toLowerCase();
-            Location currentLocation = currentPlayer.getCurrentLocation();
+        String relevantEntityName = determineRelevantEntity();
 
-            if (commandType.equals("get")){
-                return pickUpItem(potentialKey);
-            } else if (currentPlayer.getInventory().containsKey(potentialKey)){
-                GameEntity artefactToMove = currentPlayer.getInventory().get(potentialKey);
-                currentLocation.addArtefactToLocation((Artefact)artefactToMove);
-                currentPlayer.removeFromInventory(artefactToMove.getName());
-                return currentPlayer.getName() + " dropped the " +command[tokenIndex] + "\n";
-            } else {
-                throw new IOException("No " +potentialKey + " in " +currentPlayer.getName() + "'s inventory!");
-            }
+        if (commandType.equals("get")){
+            return pickUpItem(relevantEntityName);
+        } else if (currentPlayer.getInventory().containsKey(relevantEntityName)){
+            GameEntity artefactToMove = currentPlayer.getInventory().get(relevantEntityName);
+            currentLocation.addArtefactToLocation((Artefact)artefactToMove);
+            currentPlayer.removeFromInventory(artefactToMove.getName());
+            return "\n" + currentPlayer.getName() + " dropped the " +relevantEntityName;
         } else {
-            throw new IOException("Player must specify which artefact they are referring to");
+            throw new IOException("\n" +currentPlayer.getName()+ " can''t see a " +relevantEntityName +
+                    " in their inventory - try running inventory or inv to see contents");
+        }
+    }
+
+    String determineRelevantEntity() throws IOException {
+        String relevantEntity = "";
+        int entityCount = 0;
+
+        for (String token : command) {
+            if (currentLocation.checkEntityPresent(token) || currentPlayer.checkInventoryContains(token)){
+                relevantEntity = token;
+                entityCount++;
+            }
+        }
+
+        if (entityCount == 1){
+            return relevantEntity;
+        } else if (entityCount == 0){
+            throw new IOException("\n" +currentPlayer.getName() + " isn't sure what you mean - be more specific");
+        } else {
+            throw new IOException("\n" +currentPlayer.getName() + " can't multi-task - only handle one object at a time");
         }
     }
 
     String pickUpItem(String itemKey) throws IOException {
-        Location currentLocation = currentPlayer.getCurrentLocation();
-        if (!currentLocation.getLocationArtefacts().containsKey(itemKey)){
-            if (currentLocation.getLocationFurniture().containsKey(itemKey)){
-                throw new IOException("Player cannot pick up items of furniture!");
-            } else if (currentLocation.getLocationCharacters().containsKey(itemKey)){
-                throw new IOException("Player cannot pick up game characters!");
-            } else {
-                throw new IOException("There is no " +itemKey + " in " +currentPlayer.getName()+ "'s current location");
-            }
+        if (currentLocation.getLocationFurniture().containsKey(itemKey)){
+            throw new IOException("\n" + currentPlayer.getName() + " tries to pick up the " +itemKey +
+                    " but it seems to be fixed in place - players cannot pick up items of furniture");
+        } else if (currentLocation.getLocationCharacters().containsKey(itemKey)){
+            throw new IOException("\n" + currentPlayer.getName() + " tries to pick up the " +itemKey +
+                    " but they don't seem too happy about it - players cannot pick other characters");
+        } else if (currentLocation.getLocationArtefacts().containsKey(itemKey)){
+            GameEntity artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
+            currentLocation.removeEntity(artefactToMove, false);
+            currentPlayer.addToInventory(artefactToMove);
+            return "\n" + currentPlayer.getName() + " picked up the " +itemKey;
         } else {
-            if (tokenIndex+1 < command.length){
-                throw new IOException("Players cannot pick up multiple items at once!");
-            } else {
-                GameEntity artefactToMove = currentLocation.getLocationArtefacts().get(itemKey);
-                currentLocation.removeEntity(artefactToMove, false);
-                currentPlayer.addToInventory(artefactToMove);
-                return currentPlayer.getName() + " picked up the " +command[tokenIndex] + "\n";
-            }
+            throw new IOException("\n" +currentPlayer.getName()+ " can''t see a " +itemKey +
+                    " anywhere - try running look to see objects in the area");
         }
     }
 
     String processGoTo() throws IOException {
-        Location currentLocation = currentPlayer.getCurrentLocation();
-        if (tokenIndex < (command.length-1)) {
-            tokenIndex++;
-            String potentialDestination = command[tokenIndex].toLowerCase();
-
-            if (gameLayout.containsKey(potentialDestination)){
-                if (currentLocation.getPathsTo().contains(potentialDestination)){
-                    currentPlayer.setLocation(gameLayout.get(potentialDestination));
-                    return currentPlayer.getName() + " moved to " +potentialDestination + " from " +currentLocation.getName() + "\n";
-                } else {
-                    throw new IOException("There's no path to " +potentialDestination + " from " +currentLocation.getName());
-                }
+        String potentialDestination = determineDestination();
+        if (gameLayout.containsKey(potentialDestination)){
+            if (currentLocation.getPathsTo().contains(potentialDestination)){
+                currentLocation.removeEntity(currentPlayer, false);
+                Location newLocation = gameLayout.get(potentialDestination);
+                newLocation.addCharacterToLocation(currentPlayer);
+                currentPlayer.setLocation(newLocation);
+                return "\n" + currentPlayer.getName() + " travels to the " +potentialDestination + " from "
+                        +currentLocation.getName();
             } else {
-                throw new IOException("There is no " +command[tokenIndex] + " nearby!");
+                throw new IOException("\n" + currentPlayer.getName() + " can't see a way to " +potentialDestination +
+                        " from here - try running look to see available paths");
             }
         } else {
-            throw new IOException("Player must specify the destination they wish to go to!");
+            throw new IOException("\n" + currentPlayer.getName() + " can't see a" +potentialDestination +
+                    " nearby - try running look to see available paths");
+        }
+    }
+
+    String determineDestination() throws IOException {
+        String destination = "";
+        int destinationCount = 0;
+
+        for (String token : command){
+            if (gameLayout.containsKey(token)){
+                destination = token;
+                destinationCount++;
+            }
+        }
+
+        if (destinationCount == 1){
+            return destination;
+        } else if (destinationCount == 0){
+            throw new IOException("\n" + currentPlayer.getName() + " isn't sure where you want to go - be more specific");
+        } else {
+            throw new IOException("\n" + currentPlayer.getName() + " can't be in two places at once - " +
+                    "you can only goto one location at a time");
         }
     }
 
     String processGameAction(String incomingCommand) throws IOException {
         String triggerPhrase = determineActionTrigger();
+
         if (!triggerPhrase.isEmpty()){
             GameAction validAction = determineAction(possibleActions.get(triggerPhrase), incomingCommand);
             executeConsumedEntities(validAction.getConsumedEntities());
             executeProducedEntities(validAction.getProducedEntities());
-            return validAction.getNarration();
+            String response = validAction.getNarration();
+            if (currentPlayer.getHealth() <= 0){
+                respawnPlayer();
+                response = response + "\n\n" +currentPlayer.getName()+ " died and lost all of their items \n\n...\n\n...\n\n"
+                        +currentPlayer.getName()+ " opens their eyes to find themselves back in the "
+                        +startLocation.getName() + "\n ... feeling much lighter - player died and lost all their items";
+            }
+            return "\n" + response;
         } else {
-            throw new IOException("Try entering a valid command next time");
+            throw new IOException("\n" +currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
         }
     }
 
@@ -204,39 +262,46 @@ public class CommandHandler {
                 triggerPhrase = token;
             }
         }
-        if (!(triggerPhraseCount > 1)){
+        if (triggerPhraseCount == 1){
             return triggerPhrase.toLowerCase();
+        } else if (triggerPhraseCount == 0) {
+            throw new IOException("\n" +currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
         } else {
-            throw new IOException("Cannot process multiple commands at once");
+            throw new IOException("\n" +currentPlayer.getName() + " can't multi-task - enter one command at a time ");
         }
     }
 
     GameAction determineAction(HashSet<GameAction> actions, String incomingCommand) throws IOException {
+        GameAction validAction = null;
+        int validActionCount = 0;
+
         for (GameAction action : actions){
             if (checkSubjectsInCommand(action, incomingCommand) && checkSubjectsInLocation(action)){
-                return action;
+                validAction = action;
+                validActionCount++;
             }
         }
-        throw new IOException("Subjects for that action aren't present");
+        if (validActionCount == 1){
+            return validAction;
+        } else {
+            throw new IOException("\n" + currentPlayer.getName() + " isn't sure what to do - be more specific");
+        }
     }
 
     boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
+        int subjectInCommandCount = 0;
         for (String subject : action.getActionSubjects()){
-            System.out.println("Checking if " +subject + " is present in the command");
-            if (!(incomingCommand.contains(subject.toLowerCase()))){
-                System.out.println(subject + " was not present in the command");
-                return false;
+            if (incomingCommand.contains(subject.toLowerCase())){
+                subjectInCommandCount++;
             }
         }
-        return true;
+        return (subjectInCommandCount >= 1);
     }
 
     boolean checkSubjectsInLocation(GameAction action){
         Location currentLocation = currentPlayer.getCurrentLocation();
         for (String subject : action.getActionSubjects()){
-            System.out.println("Checking if " +subject + " is present in the current location");
             if (!((currentLocation.checkEntityPresent(subject)) || (currentPlayer.checkInventoryContains(subject)))){
-                System.out.println(subject + " was not present in the current location");
                 return false;
             }
         }
@@ -244,34 +309,45 @@ public class CommandHandler {
     }
 
     void executeConsumedEntities(ArrayList<String> consumed){
+        Location storeRoom = gameLayout.get("storeroom");
         Location currentLocation = currentPlayer.getCurrentLocation();
-        for (String consumedEntity : consumed){
-            if (currentLocation.checkEntityPresent(consumedEntity)){
+        for (String consumedEntity : consumed) {
+            if (consumedEntity.equalsIgnoreCase("health")){
+                currentPlayer.loseHealth();
+            } else if (currentLocation.checkEntityPresent(consumedEntity)){
                 GameEntity entityToRemove = currentLocation.determineEntityFromName(consumedEntity);
-                System.out.println("Removing " +entityToRemove.getName() + " from current location");
                 currentLocation.removeEntity(entityToRemove, true);
+                storeRoom.addEntity(entityToRemove);
             } else {
                 currentPlayer.removeFromInventory(consumedEntity);
             }
         }
     }
 
-    void executeProducedEntities(ArrayList<String> produced) throws IOException {
+    void executeProducedEntities(ArrayList<String> produced) {
         Location storeRoom = gameLayout.get("storeroom");
         Location currentLocation = currentPlayer.getCurrentLocation();
 
         for (String producedName : produced){
-            if (storeRoom.checkEntityPresent(producedName)){
+            if (producedName.equalsIgnoreCase("health")){
+                currentPlayer.gainHealth();
+            } else if (storeRoom.checkEntityPresent(producedName)){
                 GameEntity producedEntity = storeRoom.determineEntityFromName(producedName);
                 storeRoom.removeEntity(producedEntity, true);
                 currentLocation.addEntity(producedEntity);
             } else if (gameLayout.containsKey(producedName)){
                 currentLocation.addPathDestination(producedName);
-            } else {
-                throw new IOException ("Couldn't find the produced entity"); // FOR DEBUGGING
             }
         }
 
     }
 
+    void respawnPlayer(){
+        for (GameEntity entity : currentPlayer.getInventory().values()){
+            currentLocation.addEntity(entity);
+        }
+        currentPlayer.resetHealth();
+        currentPlayer.clearInventory();
+        currentPlayer.setLocation(startLocation);
+    }
 }

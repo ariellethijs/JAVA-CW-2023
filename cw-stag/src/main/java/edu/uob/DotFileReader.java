@@ -16,14 +16,11 @@ import java.util.HashMap;
 public class DotFileReader extends GameFileReader {
     HashMap<String, Location> gameLocations;
     FileReader entityFileReader;
-
     String startLocationName;
-
     DotFileReader(){
         gameLocations = new HashMap<>();
         entityFileReader = null;
     }
-
     public void openAndReadEntityFile(File entitiesFile) throws IOException {
         try {
             Parser parser = new Parser();
@@ -45,7 +42,6 @@ public class DotFileReader extends GameFileReader {
             entityFileReader.close();
         }
     }
-
     public void storeLocations(ArrayList<Graph> locations){
         boolean firstItem = true;
 
@@ -68,7 +64,6 @@ public class DotFileReader extends GameFileReader {
             gameLocations.put(locationName, currentLocation);
         }
     }
-
     private void storeLocationContent(Location parentLocation, Graph contentSubgraph, String contentType){
         ArrayList<Node> Node = contentSubgraph.getNodes(false);
         for (Node node : Node){
@@ -85,7 +80,6 @@ public class DotFileReader extends GameFileReader {
             }
         }
     }
-
     private void storePaths(ArrayList<Edge> paths){
         for (Edge path : paths){
             String fromLocation = path.getSource().getNode().getId().getId();
@@ -96,7 +90,6 @@ public class DotFileReader extends GameFileReader {
         }
 
     }
-
     protected HashMap<String, Location> getGameLocations(){ return gameLocations; }
     protected String getStartLocation(){ return startLocationName; }
 }
