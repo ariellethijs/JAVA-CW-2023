@@ -11,7 +11,7 @@ import java.util.HashSet;
 
 public final class GameServer {
 
-    CommandHandler commandHandler;
+    private CommandHandler commandHandler;
     private static final char END_OF_TRANSMISSION = 4;
 
     public static void main(String[] args) throws IOException {
@@ -37,12 +37,12 @@ public final class GameServer {
 
             XMLFileReader actionFileReader = new XMLFileReader(actionsFile);
             HashMap<String, HashSet<GameAction>> possibleActions = actionFileReader.getAllGameActions();
+
             commandHandler = new CommandHandler(gameLayout, possibleActions, startLocationName);
         } catch (IOException | ParserConfigurationException | SAXException e) {
             System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
         }
     }
-
 
     /**
     * Do not change the following method signature or we won't be able to mark your submission
@@ -52,7 +52,7 @@ public final class GameServer {
     */
     public String handleCommand(String command) {
         try {
-            String response = commandHandler.handleBuiltInCommand(command);
+            String response = commandHandler.handleCommand(command);
             System.out.println(response); // FOR DEBUGGING REMOVE L8R
             return response + "\n";
         } catch (IOException e){

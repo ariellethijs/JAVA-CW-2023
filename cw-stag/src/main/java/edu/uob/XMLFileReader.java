@@ -16,15 +16,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 
 public class XMLFileReader extends GameFileReader {
-   // ArrayList<GameAction> allGameActions;
-   HashMap<String, HashSet<GameAction>> allGameActions;
+    private final HashMap<String, HashSet<GameAction>> allGameActions;
 
-    XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
+    public XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
         allGameActions = new HashMap<>();
         openAndReadActionsFile(actionsFile);
     }
-
-    void openAndReadActionsFile(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
+    public void openAndReadActionsFile(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
         DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
         Document document = builder.parse(actionsFile);
         document.getDocumentElement().normalize();
@@ -34,13 +32,13 @@ public class XMLFileReader extends GameFileReader {
         for (int i = 0; i < actions.getLength(); i++){
             Element action = (Element)actions.item(i);
             ArrayList<String> triggers = storeSubElementValues(action,"triggers", false);
-            GameAction currentAction = storeActionContents(action, triggers);
+            GameAction currentAction = storeActionContents(action);
             for (String trigger : triggers){
                 trigger = trigger.toLowerCase();
                 if (allGameActions.containsKey(trigger)){
                     HashSet<GameAction> actionSet = allGameActions.get(trigger);
                     actionSet.add(currentAction);
-                } else {
+                } else if (!checkIfKeyword(trigger)){
                     HashSet<GameAction> newActionSet = new HashSet<>();
                     newActionSet.add(currentAction);
                     allGameActions.put(trigger, newActionSet);
@@ -48,16 +46,14 @@ public class XMLFileReader extends GameFileReader {
             }
         }
     }
-
-    GameAction storeActionContents(Element action, ArrayList<String> triggers) throws IOException {
+    private GameAction storeActionContents(Element action) throws IOException {
         ArrayList<String> subjects = storeSubElementValues(action, "subjects", false);
         ArrayList<String> consumedEntities = storeSubElementValues(action, "consumed", true);
         ArrayList<String> producedEntities = storeSubElementValues(action, "produced", true);
         String narration = storeSubElementValues(action,"narration", false).get(0);
-        return new GameAction(triggers, subjects, consumedEntities, producedEntities, narration);
+        return new GameAction(subjects, consumedEntities, producedEntities, narration);
     }
-
-    ArrayList<String> storeSubElementValues(Element action, String tagName, boolean optional) throws IOException {
+    private ArrayList<String> storeSubElementValues(Element action, String tagName, boolean optional) throws IOException {
         ArrayList<String> subElementKeyPhrases = new ArrayList<>();
 
         Node subElement = action.getElementsByTagName(tagName).item(0);
@@ -69,12 +65,11 @@ public class XMLFileReader extends GameFileReader {
             if (!nodeText.isEmpty() && !checkIfKeyword(nodeText)){
                 subElementKeyPhrases.add(nodeText);
             } else if (childNodes.getLength() == 1 && nodeText.isEmpty() && optional){
-                subElementKeyPhrases.add("");
+                subElementKeyPhrases.add(""); // If the node is empty and it's an optional value add a placeholder
             }
         }
         return subElementKeyPhrases;
     }
-
-    HashMap<String, HashSet<GameAction>> getAllGameActions(){ return allGameActions; }
+    public HashMap<String, HashSet<GameAction>> getAllGameActions(){ return allGameActions; }
 
 }

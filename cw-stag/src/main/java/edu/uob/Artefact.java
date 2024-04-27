@@ -1,10 +1,7 @@
 package edu.uob;
 
 public class Artefact extends GameEntity {
-    Location currentLocation;
-
-    Artefact (String name, String description, Location location){
+    Artefact (String name, String description){
         super(name, description);
-        currentLocation = location;
     }
 }

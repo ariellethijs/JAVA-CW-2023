@@ -14,10 +14,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 public class DotFileReader extends GameFileReader {
-    HashMap<String, Location> gameLocations;
-    FileReader entityFileReader;
-    String startLocationName;
-    DotFileReader(){
+    private final HashMap<String, Location> gameLocations;
+    private FileReader entityFileReader;
+    private String startLocationName;
+    public DotFileReader(){
         gameLocations = new HashMap<>();
         entityFileReader = null;
     }
@@ -42,26 +42,28 @@ public class DotFileReader extends GameFileReader {
             entityFileReader.close();
         }
     }
-    public void storeLocations(ArrayList<Graph> locations){
+    private void storeLocations(ArrayList<Graph> locations){
         boolean firstItem = true;
 
         for (Graph location : locations){
             String locationName = location.getNodes(false).get(0).getId().getId();
 
-            if (firstItem){ // Store the name of the first location in the dot file
-                startLocationName = locationName;
-                firstItem = false;
+            if (!checkIfKeyword(locationName)) {
+                if (firstItem) { // Store the name of the first location in the dot file
+                    startLocationName = locationName;
+                    firstItem = false;
+                }
+
+                String locationDescription = location.getNodes(false).get(0).getAttribute("description");
+                ArrayList<Graph> locationContents = location.getSubgraphs();
+
+                Location currentLocation = new Location(locationName, locationDescription);
+
+                for (Graph content : locationContents) {
+                    storeLocationContent(currentLocation, content, content.getId().getId());
+                }
+                gameLocations.put(locationName, currentLocation);
             }
-
-            String locationDescription = location.getNodes(false).get(0).getAttribute("description");
-            ArrayList<Graph> locationContents = location.getSubgraphs();
-
-            Location currentLocation = new Location(locationName, locationDescription);
-
-            for (Graph content : locationContents){
-                storeLocationContent(currentLocation, content, content.getId().getId());
-            }
-            gameLocations.put(locationName, currentLocation);
         }
     }
     private void storeLocationContent(Location parentLocation, Graph contentSubgraph, String contentType){
@@ -70,13 +72,12 @@ public class DotFileReader extends GameFileReader {
             String name = node.getId().getId();
             String description = node.getAttribute("description");
 
-            switch (contentType) {
-                case "artefacts" ->
-                        parentLocation.addArtefactToLocation(new Artefact(name, description, parentLocation));
-                case "furniture" ->
-                        parentLocation.addFurnitureToLocation(new Furniture(name, description, parentLocation));
-                case "characters" ->
-                        parentLocation.addCharacterToLocation(new Character(name, description, parentLocation));
+            if (!checkIfKeyword(name)) {
+                switch (contentType) {
+                    case "artefacts" -> parentLocation.addArtefactToLocation(new Artefact(name, description));
+                    case "furniture" -> parentLocation.addFurnitureToLocation(new Furniture(name, description));
+                    case "characters" -> parentLocation.addCharacterToLocation(new Character(name, description));
+                }
             }
         }
     }
@@ -88,8 +89,7 @@ public class DotFileReader extends GameFileReader {
                 gameLocations.get(fromLocation).addPathDestination(toLocation);
             }
         }
-
     }
-    protected HashMap<String, Location> getGameLocations(){ return gameLocations; }
-    protected String getStartLocation(){ return startLocationName; }
+    public HashMap<String, Location> getGameLocations(){ return gameLocations; }
+    public String getStartLocation(){ return startLocationName; }
 }

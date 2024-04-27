@@ -4,77 +4,94 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 
 public class CommandHandler {
-    HashMap<String, Location> gameLayout;
-    HashMap<String, HashSet<GameAction>> possibleActions;
-    GamePlayer currentPlayer;
-    Location currentLocation;
-    Location startLocation;
-    HashMap<String, GamePlayer> allPlayers;
-    int playerIndex;
-    int tokenIndex;
-    String[] command;
-    String[] commandKeywords = {
-            "inv", //"inventory",
-            "get", "drop",
-            "goto", "look", "health"
-    };
+    private final HashMap<String, Location> gameLayout;
+    private final HashMap<String, HashSet<GameAction>> possibleActions;
+    private GamePlayer currentPlayer;
+    private Location currentLocation;
+    private final Location startLocation;
+    private final HashMap<String, GamePlayer> allPlayers;
+    private int playerIndex;
+    private String[] command;
+    private final Set<String> commandKeywords = Set.of("inv", "inventory", "get", "drop",
+            "goto", "look", "health");
 
-    CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
+    public CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
         gameLayout = layout;
         possibleActions = actions;
         startLocation = gameLayout.get(firstLocation);
         allPlayers = new HashMap<>();
         playerIndex = 0;
-        tokenIndex = 0;
     }
 
-    String handleBuiltInCommand(String incomingCommand) throws IOException {
+    public String handleCommand(String incomingCommand) throws IOException {
         incomingCommand = incomingCommand.toLowerCase();
         command = incomingCommand.trim().split("\\s+");
-        String commandKeyword = determineCommandKeyword(incomingCommand);
         currentPlayer = determineCommandPlayer(command[0]);
         currentLocation = currentPlayer.getCurrentLocation();
 
-        return switch (commandKeyword) {
+        if (checkNoMultipleKeywords()){
+            String commandKeyword = findSingleMatch(commandKeywords);
+            Set <String> actionTriggers = possibleActions.keySet();
+            String actionTrigger = findSingleMatch(actionTriggers);
+
+            if (commandKeyword != null){
+                return handleBuiltInCommand(commandKeyword);
+            } else {
+                return processGameAction(incomingCommand, actionTrigger);
+            }
+        } else {
+            throw new IOException("\nNot sure what you mean - try a valid command next time");
+        }
+    }
+
+    public String handleBuiltInCommand(String keyword) throws IOException {
+        return switch (keyword) {
             case "inventory", "inv" -> processInventory();
             case "look" -> processLook();
-            case "get", "drop" -> processGetOrDrop(commandKeyword);
+            case "get", "drop" -> processGetOrDrop(keyword);
             case "goto" -> processGoTo();
             case "health" -> currentPlayer.getName() + "'s health: " +currentPlayer.getHealth();
-            default -> processGameAction(incomingCommand);
+            default -> throw new IOException("\n"  + currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
         };
     }
 
-    String determineCommandKeyword(String incomingCommand) throws IOException {
-        int keywordCount = 0;
-        String commandPhrase = "";
-
-        for (String keyword : commandKeywords){
-            if (incomingCommand.contains(keyword)){
-                commandPhrase = keyword;
-                keywordCount++;
-            }
-        }
-
-        int possibleActionCount = 0;
-        for (String token : command){
-            if (possibleActions.containsKey(token)){
-                possibleActionCount++;
-            }
-        }
+    private boolean checkNoMultipleKeywords() throws IOException {
+        int keywordCount = countOccurrences(commandKeywords);
+        Set <String> actionTriggers = possibleActions.keySet();
+        int possibleActionCount = countOccurrences(actionTriggers);
 
         if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount == 1))){
-            return commandPhrase;
+            return true;
         } else if (keywordCount == 0 && possibleActionCount == 0) {
-cd             throw new IOException("\nNot sure what you mean - try a valid command next time");
+            throw new IOException("\n"  + currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
         } else {
-            throw new IOException("\nPlayer can't multi-task - enter one command at a time");
+            throw new IOException("\n"  + currentPlayer.getName() +" can't multi-task - enter one command at a time");
         }
     }
 
-    GamePlayer determineCommandPlayer(String name) throws IOException {
+    private int countOccurrences(Set<String> keywords){
+        int count = 0;
+        for (String commandToken : command){
+            if (keywords.contains(commandToken)){
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private String findSingleMatch(Set<String> keywords){
+        for (String commandToken : command){
+            if (keywords.contains(commandToken)){
+                return commandToken;
+            }
+        }
+        return null;
+    }
+
+    private GamePlayer determineCommandPlayer(String name) throws IOException {
         if (name.charAt(name.length()-1) == ':'){
             name = name.substring(0, (name.length() - 1));
             String nameAsKey = name.toLowerCase();
@@ -88,11 +105,11 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
                 return newPlayer;
             }
         } else {
-            throw new IOException("Not sure whose playing - start with your name next time");
+            throw new IOException("\nNot sure whose playing - start with your name next time");
         }
     }
 
-    String processInventory(){
+    private String processInventory(){
         if (!currentPlayer.getInventory().isEmpty()){
             StringBuilder response = new StringBuilder("\n[" + currentPlayer.getName().toUpperCase() + "'S INVENTORY]\n");
             for (GameEntity entity : currentPlayer.getInventory().values()){
@@ -105,9 +122,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    String processLook(){
-        Location currentLocation = currentPlayer.getCurrentLocation();
-
+    private String processLook(){
         StringBuilder response = new StringBuilder("\n[" + currentLocation.getName().toUpperCase() + "] " + currentLocation.getDescription() + "\n");
 
         response = iterateThroughLocationEntities(response, currentLocation.getLocationArtefacts());
@@ -123,7 +138,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         return String.valueOf(response);
     }
 
-    StringBuilder iterateThroughLocationEntities(StringBuilder response, HashMap<String, GameEntity> entityMap){
+    private StringBuilder iterateThroughLocationEntities(StringBuilder response, HashMap<String, GameEntity> entityMap){
         String indentation = "     ";
         for (GameEntity entity : entityMap.values()){
             if (!entity.getName().equals(currentPlayer.getName())){ // Skip over the current player when looking
@@ -134,11 +149,11 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         return response;
     }
 
-    StringBuilder appendEntityDescription(StringBuilder response, GameEntity entity){
+    private StringBuilder appendEntityDescription(StringBuilder response, GameEntity entity){
         return response.append("[").append(entity.getName().toUpperCase()).append("] ").append(entity.getDescription()).append("\n");
     }
 
-    String processGetOrDrop(String commandType) throws IOException {
+    private String processGetOrDrop(String commandType) throws IOException {
         String relevantEntityName = determineRelevantEntity();
 
         if (commandType.equals("get")){
@@ -149,24 +164,26 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
             currentPlayer.removeFromInventory(artefactToMove.getName());
             return "\n" + currentPlayer.getName() + " dropped the " +relevantEntityName;
         } else {
-            throw new IOException("\n" +currentPlayer.getName()+ " can''t see a " +relevantEntityName +
+            throw new IOException("\n" +currentPlayer.getName()+ " can't see a " +relevantEntityName +
                     " in their inventory - try running inventory or inv to see contents");
         }
     }
 
-    String determineRelevantEntity() throws IOException {
+    private String determineRelevantEntity() throws IOException {
         String relevantEntity = "";
         int entityCount = 0;
 
         for (String token : command) {
+            if (checkEntityExistsInGame(token)){  entityCount++; }
             if (currentLocation.checkEntityPresent(token) || currentPlayer.checkInventoryContains(token)){
                 relevantEntity = token;
-                entityCount++;
             }
         }
 
-        if (entityCount == 1){
+        if ((entityCount == 1) && !relevantEntity.isEmpty()){
             return relevantEntity;
+        } else if (relevantEntity.isEmpty()){
+            throw new IOException("\n" +currentPlayer.getName()+ " can't see the item you're referring to");
         } else if (entityCount == 0){
             throw new IOException("\n" +currentPlayer.getName() + " isn't sure what you mean - be more specific");
         } else {
@@ -174,7 +191,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    String pickUpItem(String itemKey) throws IOException {
+    private String pickUpItem(String itemKey) throws IOException {
         if (currentLocation.getLocationFurniture().containsKey(itemKey)){
             throw new IOException("\n" + currentPlayer.getName() + " tries to pick up the " +itemKey +
                     " but it seems to be fixed in place - players cannot pick up items of furniture");
@@ -187,12 +204,12 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
             currentPlayer.addToInventory(artefactToMove);
             return "\n" + currentPlayer.getName() + " picked up the " +itemKey;
         } else {
-            throw new IOException("\n" +currentPlayer.getName()+ " can''t see a " +itemKey +
+            throw new IOException("\n" +currentPlayer.getName()+ " can't see a " +itemKey +
                     " anywhere - try running look to see objects in the area");
         }
     }
 
-    String processGoTo() throws IOException {
+    private String processGoTo() throws IOException {
         String potentialDestination = determineDestination();
         if (gameLayout.containsKey(potentialDestination)){
             if (currentLocation.getPathsTo().contains(potentialDestination)){
@@ -212,7 +229,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    String determineDestination() throws IOException {
+    private String determineDestination() throws IOException {
         String destination = "";
         int destinationCount = 0;
 
@@ -233,9 +250,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    String processGameAction(String incomingCommand) throws IOException {
-        String triggerPhrase = determineActionTrigger();
-
+    private String processGameAction(String incomingCommand, String triggerPhrase) throws IOException {
         if (!triggerPhrase.isEmpty()){
             GameAction validAction = determineAction(possibleActions.get(triggerPhrase), incomingCommand);
             executeConsumedEntities(validAction.getConsumedEntities());
@@ -253,32 +268,18 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    String determineActionTrigger() throws IOException {
-        String triggerPhrase = "";
-        int triggerPhraseCount = 0;
-        for (String token : command){
-            if (possibleActions.containsKey(token.toLowerCase())){
-                triggerPhraseCount++;
-                triggerPhrase = token;
-            }
-        }
-        if (triggerPhraseCount == 1){
-            return triggerPhrase.toLowerCase();
-        } else if (triggerPhraseCount == 0) {
-            throw new IOException("\n" +currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
-        } else {
-            throw new IOException("\n" +currentPlayer.getName() + " can't multi-task - enter one command at a time ");
-        }
-    }
-
-    GameAction determineAction(HashSet<GameAction> actions, String incomingCommand) throws IOException {
+    private GameAction determineAction(HashSet<GameAction> actions, String incomingCommand) throws IOException {
         GameAction validAction = null;
         int validActionCount = 0;
 
         for (GameAction action : actions){
             if (checkSubjectsInCommand(action, incomingCommand) && checkSubjectsInLocation(action)){
-                validAction = action;
-                validActionCount++;
+                if (checkNoExtraneousEntities(action)) {
+                    validAction = action;
+                    validActionCount++;
+                } else {
+                    throw new IOException("\n" + currentPlayer.getName() + " isn't sure what to do - don't include extraneous objects in action calls");
+                }
             }
         }
         if (validActionCount == 1){
@@ -288,17 +289,13 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         }
     }
 
-    boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
-        int subjectInCommandCount = 0;
-        for (String subject : action.getActionSubjects()){
-            if (incomingCommand.contains(subject.toLowerCase())){
-                subjectInCommandCount++;
-            }
-        }
+    private boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
+        Set <String> actionSubjects = new HashSet<>(action.getActionSubjects());
+        int subjectInCommandCount = countOccurrences(actionSubjects);
         return (subjectInCommandCount >= 1);
     }
 
-    boolean checkSubjectsInLocation(GameAction action){
+    private boolean checkSubjectsInLocation(GameAction action){
         Location currentLocation = currentPlayer.getCurrentLocation();
         for (String subject : action.getActionSubjects()){
             if (!((currentLocation.checkEntityPresent(subject)) || (currentPlayer.checkInventoryContains(subject)))){
@@ -308,9 +305,34 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
         return true;
     }
 
-    void executeConsumedEntities(ArrayList<String> consumed){
+    private boolean checkNoExtraneousEntities(GameAction action) throws IOException {
+        Set <String> actionSubjects = new HashSet<>(action.getActionSubjects());
+        for (String commandToken : command){
+            if (checkEntityExistsInGame(commandToken) && !actionSubjects.contains(commandToken)){
+                // If there is an entity in the command which exists in the game, but is not a subject
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean checkEntityExistsInGame(String entityName) {
+        for (Location location: gameLayout.values()){
+            if (location.checkEntityPresent(entityName)){
+                return true;
+            }
+        }
+
+        for (GamePlayer player : allPlayers.values()){
+            if (player.checkInventoryContains(entityName)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void executeConsumedEntities(ArrayList<String> consumed){
         Location storeRoom = gameLayout.get("storeroom");
-        Location currentLocation = currentPlayer.getCurrentLocation();
         for (String consumedEntity : consumed) {
             if (consumedEntity.equalsIgnoreCase("health")){
                 currentPlayer.loseHealth();
@@ -318,15 +340,16 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
                 GameEntity entityToRemove = currentLocation.determineEntityFromName(consumedEntity);
                 currentLocation.removeEntity(entityToRemove, true);
                 storeRoom.addEntity(entityToRemove);
-            } else {
+            } else if (currentPlayer.checkInventoryContains(consumedEntity)){
                 currentPlayer.removeFromInventory(consumedEntity);
+            } else if (gameLayout.containsKey(consumedEntity)){
+                currentLocation.removePath(consumedEntity);
             }
         }
     }
 
-    void executeProducedEntities(ArrayList<String> produced) {
+    private void executeProducedEntities(ArrayList<String> produced) {
         Location storeRoom = gameLayout.get("storeroom");
-        Location currentLocation = currentPlayer.getCurrentLocation();
 
         for (String producedName : produced){
             if (producedName.equalsIgnoreCase("health")){
@@ -342,7 +365,7 @@ cd             throw new IOException("\nNot sure what you mean - try a valid com
 
     }
 
-    void respawnPlayer(){
+    private void respawnPlayer(){
         for (GameEntity entity : currentPlayer.getInventory().values()){
             currentLocation.addEntity(entity);
         }

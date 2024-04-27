@@ -87,27 +87,27 @@ class ExampleSTAGTests {
   @Test
     void testInvalidInbuiltCommands(){
       // No command key word:
-        assertTrue(sendCommandToServer("Tom: Kisshan").contains("Not sure what you mean - try a valid command next time"));
+        assertTrue(sendCommandToServer("Tom: Kisshan").contains("tom isn't sure what you mean - try a valid command next time"));
 
       // Multiple command keywords:
-        assertTrue(sendCommandToServer("Kisshan: look goto").contains("Player can't multi-task - enter one command at a time"));
+        assertTrue(sendCommandToServer("Kisshan: look goto").contains("kisshan can't multi-task - enter one command at a time"));
 
       // Get command tests:
         // Attempting furniture pickup:
         assertTrue(sendCommandToServer("Kisshan: get trapdoor").contains("kisshan tries to pick up the trapdoor but it seems to be fixed in place - players cannot pick up items of furniture"));
         // Attempting pickup of an item not in the location:
-        assertTrue(sendCommandToServer("Kisshan: get hammer").contains("kisshan isn't sure what you mean - be more specific"));
+        assertTrue(sendCommandToServer("Kisshan: get hammer").contains("can't see the item you're referring to"));
         // Attempting multiple item pickup:
         assertTrue(sendCommandToServer("Kisshan: get potion axe").contains("kisshan can't multi-task - only handle one object at a time"));
 
       // Drop command tests:
         // No item specified:
-        assertTrue(sendCommandToServer("Kisshan: drop").contains("kisshan isn't sure what you mean - be more specific"));
+        assertTrue(sendCommandToServer("Kisshan: drop").contains("can't see the item you're referring to"));
         // Item player doesn't have:
-        assertTrue(sendCommandToServer("Kisshan: drop axe").contains("kisshan can''t see a axe in their inventory - try running inventory or inv to see contents"));
+        assertTrue(sendCommandToServer("Kisshan: drop axe").contains("kisshan can't see a axe in their inventory - try running inventory or inv to see contents"));
         // Item another player has:
         sendCommandToServer("Tom: get potion");
-        assertTrue(sendCommandToServer("Kisshan: get potion").contains("kisshan isn't sure what you mean - be more specific"));
+        assertTrue(sendCommandToServer("Kisshan: get potion").contains("can't see the item you're referring to"));
 
       // Goto command tests:
         // No destination specified:
@@ -155,7 +155,10 @@ class ExampleSTAGTests {
       sendCommandToServer("Tom: goto forest");
 
       // Invalid composite commands
-      assertTrue(sendCommandToServer("Tom: Chop tree and get key").contains("Player can't multi-task - enter one command at a time"));
+      assertTrue(sendCommandToServer("Tom: Chop tree and get key").contains("tom can't multi-task - enter one command at a time"));
+
+      // Extraneous entities
+      assertTrue(sendCommandToServer("Tom: chop tree with axe and potion").contains("tom isn't sure what to do - don't include extraneous objects in action calls"));
 
       // Different word order && decorated syntax
       assertTrue(sendCommandToServer("Tom: please use the axe to chop the tree").contains("You cut down the tree with the axe"));
@@ -167,6 +170,7 @@ class ExampleSTAGTests {
       assertTrue(sendCommandToServer("Tom: unlock").contains("tom isn't sure what to do - be more specific"));
       // Valid partial command
       assertTrue(sendCommandToServer("Tom: unlock trapdoor").contains("You unlock the trapdoor and see steps leading down into a cellar"));
+
   }
 
 }

@@ -1,12 +1,7 @@
 package edu.uob;
 
 public class Character extends GameEntity {
-    Location currentLocation;
-
-    Character (String name, String description, Location location){
+    Character (String name, String description){
         super(name, description);
-        currentLocation = location;
     }
-
-    Location getCurrentLocation(){ return currentLocation; }
 }
