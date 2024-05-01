@@ -15,8 +15,8 @@ public final class GameServer {
     private static final char END_OF_TRANSMISSION = 4;
 
     public static void main(String[] args) throws IOException {
-        File entitiesFile = Paths.get("config" + File.separator + "basic-entities.dot").toAbsolutePath().toFile();
-        File actionsFile = Paths.get("config" + File.separator + "basic-actions.xml").toAbsolutePath().toFile();
+        File entitiesFile = Paths.get("config" + File.separator + "extended-entities.dot").toAbsolutePath().toFile();
+        File actionsFile = Paths.get("config" + File.separator + "extended-actions.xml").toAbsolutePath().toFile();
         GameServer server = new GameServer(entitiesFile, actionsFile);
         server.blockingListenOn(8888);
     }
@@ -54,10 +54,10 @@ public final class GameServer {
         try {
             String response = commandHandler.handleCommand(command);
             System.out.println(response); // FOR DEBUGGING REMOVE L8R
-            return response + "\n";
+            return response;
         } catch (IOException e){
             System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
-            return e.getMessage() + "\n";
+            return e.getMessage();
         }
     }
 

@@ -45,6 +45,7 @@ public class ExtendedSTAGTests {
         sendCommandToServer("Tom: goto forest");
         sendCommandToServer("Tom: goto riverbank");
         sendCommandToServer("Tom: get horn");
+        sendCommandToServer("Tom: inventory");
         assertTrue(sendCommandToServer("Tom: blow horn").contains("You blow the horn and as if by magic, a lumberjack appears !"));
         assertTrue(sendCommandToServer("Tom: look").contains("LUMBERJACK"));
         assertTrue(sendCommandToServer("Tom: get lumberjack").contains("players cannot pick other characters"));
@@ -58,4 +59,5 @@ public class ExtendedSTAGTests {
         assertTrue(sendCommandToServer("Tom: look").contains("HOLE"));
         assertTrue(sendCommandToServer("Tom: look").contains("GOLD"));
     }
+
 }
