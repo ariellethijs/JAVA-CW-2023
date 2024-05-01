@@ -167,7 +167,7 @@ class ExampleSTAGTests {
       sendCommandToServer("Tom: goto cabin");
 
       // Invalid partial command
-      assertTrue(sendCommandToServer("Tom: unlock").contains("tom isn't sure what to do - which open action do you want to perform?"));
+      assertTrue(sendCommandToServer("Tom: unlock").contains("tom isn't sure what to do - try entering a valid command next time"));
       // Valid partial command
       assertTrue(sendCommandToServer("Tom: unlock trapdoor").contains("You unlock the trapdoor and see steps leading down into a cellar"));
 
@@ -175,10 +175,10 @@ class ExampleSTAGTests {
       assertTrue(sendCommandToServer("Tom: axe tree").contains("tom isn't sure what you mean - try a valid command next time"));
 
       // Invalid action trigger
-      assertTrue(sendCommandToServer("Tom: use hammer to chop tree").contains("tom isn't sure what to do - which open action do you want to perform?"));
+      assertTrue(sendCommandToServer("Tom: use hammer to chop tree").contains("tom isn't sure what to do - try entering a valid command next time"));
 
       // Invalid subject
-      assertTrue(sendCommandToServer("Tom: chop tree with hammer").contains("tom isn't sure what to do - which open action do you want to perform?"));
+      assertTrue(sendCommandToServer("Tom: chop tree with hammer").contains("tom isn't sure what to do - try entering a valid command next time"));
 
       // Invalid action trigger and subject
       assertTrue(sendCommandToServer("Tom: burn tree with fire").contains("tom isn't sure what you mean - try a valid command next time"));

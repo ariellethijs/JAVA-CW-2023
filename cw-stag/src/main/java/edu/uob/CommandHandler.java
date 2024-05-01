@@ -32,10 +32,9 @@ public class CommandHandler {
         currentPlayer = determineCommandPlayer(command[0]);
         currentLocation = currentPlayer.getCurrentLocation();
 
-        if (checkNoMultipleKeywords()){
-            String commandKeyword = findSingleMatch(commandKeywords);
-            Set <String> actionTriggers = possibleActions.keySet();
-            String actionTrigger = findSingleMatch(actionTriggers);
+        if (checkNoMultipleKeywords(incomingCommand)){
+            String commandKeyword = findSingleMatch(commandKeywords, incomingCommand);
+            String actionTrigger = findSingleMatch(possibleActions.keySet(), incomingCommand);
 
             if (commandKeyword != null){
                 return handleBuiltInCommand(commandKeyword);
@@ -224,10 +223,10 @@ public class CommandHandler {
         }
     }
 
-    private boolean checkNoMultipleKeywords() throws IOException {
-        int keywordCount = countOccurrences(commandKeywords);
+    private boolean checkNoMultipleKeywords(String incomingCommand) throws IOException {
+        int keywordCount = countOccurrences(commandKeywords, incomingCommand);
         Set <String> actionTriggers = possibleActions.keySet();
-        int possibleActionCount = countOccurrences(actionTriggers);
+        int possibleActionCount = countOccurrences(actionTriggers, incomingCommand);
 
         if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount == 1))){
             return true;
@@ -238,20 +237,20 @@ public class CommandHandler {
         }
     }
 
-    private int countOccurrences(Set<String> keywords){
+    private int countOccurrences(Set<String> keywords, String incomingCommand){
         int count = 0;
-        for (String commandToken : command){
-            if (keywords.contains(commandToken)){
+        for (String keyword : keywords){
+            if (incomingCommand.contains(keyword)){
                 count++;
             }
         }
         return count;
     }
 
-    private String findSingleMatch(Set<String> keywords){
-        for (String commandToken : command){
-            if (keywords.contains(commandToken)){
-                return commandToken;
+    private String findSingleMatch(Set<String> keywords, String incomingCommand){
+        for (String keyword : keywords){
+            if (incomingCommand.contains(keyword)){
+                return keyword;
             }
         }
         return null;
@@ -335,14 +334,15 @@ public class CommandHandler {
         }
         if (validActionCount == 1){
             return validAction;
+        } else if (validActionCount == 0){
+            throw new IOException(currentPlayer.getName() + " isn't sure what to do - try entering a valid command next time");
         } else {
             throw new IOException(currentPlayer.getName() + " isn't sure what to do - which open action do you want to perform?");
         }
     }
 
     private boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
-        Set <String> actionSubjects = new HashSet<>(action.getActionSubjects());
-        int subjectInCommandCount = countOccurrences(actionSubjects);
+        int subjectInCommandCount = countOccurrences(new HashSet<>(action.getActionSubjects()), incomingCommand);
         return (subjectInCommandCount >= 1);
     }
 
@@ -350,7 +350,6 @@ public class CommandHandler {
         for (String subject : actionEntities){
             if (!subject.isEmpty() && !(currentLocation.checkEntityPresent(subject) || currentPlayer.checkInventoryContains(subject) ||
                     currentLocation.checkIfPathTo(subject) || subject.equalsIgnoreCase("health"))){
-                System.out.println("Returning false for consumed entity " +subject);
                 return false;
             }
         }
@@ -379,7 +378,6 @@ public class CommandHandler {
             }
         }
         return false;
-
     }
 
     private boolean checkEntityPlacedInGame(String entityName){
