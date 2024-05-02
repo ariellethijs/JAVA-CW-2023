@@ -53,7 +53,7 @@ public class XMLFileReader extends GameFileReader {
         String narration = storeSubElementValues(action,"narration", false).get(0);
         return new GameAction(subjects, consumedEntities, producedEntities, narration);
     }
-    private ArrayList<String> storeSubElementValues(Element action, String tagName, boolean optional) throws IOException {
+    private ArrayList<String> storeSubElementValues(Element action, String tagName, boolean optional) {
         ArrayList<String> subElementKeyPhrases = new ArrayList<>();
 
         Node subElement = action.getElementsByTagName(tagName).item(0);
@@ -61,7 +61,7 @@ public class XMLFileReader extends GameFileReader {
 
         for (int i = 0; i < childNodes.getLength(); i++){
             Node childNode = childNodes.item(i);
-            String nodeText = childNode.getTextContent().trim();
+            String nodeText = childNode.getTextContent().trim().toLowerCase();
             if (!nodeText.isEmpty() && !checkIfKeyword(nodeText)){
                 subElementKeyPhrases.add(nodeText);
             } else if (childNodes.getLength() == 1 && nodeText.isEmpty() && optional){

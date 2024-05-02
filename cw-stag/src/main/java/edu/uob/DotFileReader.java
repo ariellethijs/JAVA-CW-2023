@@ -46,7 +46,7 @@ public class DotFileReader extends GameFileReader {
         boolean firstItem = true;
 
         for (Graph location : locations){
-            String locationName = location.getNodes(false).get(0).getId().getId();
+            String locationName = location.getNodes(false).get(0).getId().getId().toLowerCase();
 
             if (!checkIfKeyword(locationName)) {
                 if (firstItem) { // Store the name of the first location in the dot file
@@ -69,7 +69,7 @@ public class DotFileReader extends GameFileReader {
     private void storeLocationContent(Location parentLocation, Graph contentSubgraph, String contentType){
         ArrayList<Node> Node = contentSubgraph.getNodes(false);
         for (Node node : Node){
-            String name = node.getId().getId();
+            String name = node.getId().getId().toLowerCase();
             String description = node.getAttribute("description");
 
             if (!checkIfKeyword(name)) {
@@ -83,8 +83,8 @@ public class DotFileReader extends GameFileReader {
     }
     private void storePaths(ArrayList<Edge> paths){
         for (Edge path : paths){
-            String fromLocation = path.getSource().getNode().getId().getId();
-            String toLocation = path.getTarget().getNode().getId().getId();
+            String fromLocation = path.getSource().getNode().getId().getId().toLowerCase();
+            String toLocation = path.getTarget().getNode().getId().getId().toLowerCase();
             if (gameLocations.containsKey(fromLocation)){
                 gameLocations.get(fromLocation).addPathDestination(toLocation);
             }

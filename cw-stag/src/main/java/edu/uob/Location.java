@@ -57,6 +57,5 @@ public class Location extends GameEntity {
             return locationFurniture.get(entityName);
         }
     }
-
     public boolean checkIfPathTo(String destinationName){ return pathsTo.contains(destinationName); }
 }
