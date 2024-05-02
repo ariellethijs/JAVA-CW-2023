@@ -225,10 +225,9 @@ public class CommandHandler {
 
     private boolean checkNoMultipleKeywords(String incomingCommand) throws IOException {
         int keywordCount = countOccurrences(commandKeywords, incomingCommand);
-        Set <String> actionTriggers = possibleActions.keySet();
-        int possibleActionCount = countOccurrences(actionTriggers, incomingCommand);
+        int possibleActionCount = countOccurrences(possibleActions.keySet(), incomingCommand);
 
-        if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount == 1))){
+        if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount >= 1))){
             return true;
         } else if (keywordCount == 0 && possibleActionCount == 0) {
             throw new IOException(currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
@@ -276,7 +275,7 @@ public class CommandHandler {
         int entityCount = 0;
 
         for (String token : command) {
-            if (checkEntityExistsInGame(token)){  entityCount++; }
+            if (checkEntityExistsInGame(token) || currentPlayer.checkInventoryContains(token)){  entityCount++; }
             if (currentLocation.checkEntityPresent(token) || currentPlayer.checkInventoryContains(token)){
                 relevantEntity = token;
             }
@@ -319,11 +318,14 @@ public class CommandHandler {
         int validActionCount = 0;
 
         for (GameAction action : actions){
-            if (checkSubjectsInCommand(action, incomingCommand) && checkCertainEntitiesAvailable(action.getActionSubjects())){
+            if (checkSubjectsInCommand(action, incomingCommand) && checkActionSubjectsAvailable(action.getActionSubjects())){
                 if (checkNoExtraneousEntities(action)){
-                    if (checkCertainEntitiesAvailable(action.getConsumedEntities())){
-                        validAction = action;
-                        validActionCount++;
+                    if (checkConsumedEntitiesAvailable(action.getConsumedEntities())){
+                        if (validAction != action){
+                            // If the trigger word points to a different action, increment the number of valid actions
+                            validAction = action;
+                            validActionCount++;
+                        }
                     } else {
                         throw new IOException(currentPlayer.getName() + " cannot repeat actions which have already had permanent consequences");
                     }
@@ -346,14 +348,29 @@ public class CommandHandler {
         return (subjectInCommandCount >= 1);
     }
 
-    private boolean checkCertainEntitiesAvailable(ArrayList<String> actionEntities){
-        for (String subject : actionEntities){
-            if (!subject.isEmpty() && !(currentLocation.checkEntityPresent(subject) || currentPlayer.checkInventoryContains(subject) ||
-                    currentLocation.checkIfPathTo(subject) || subject.equalsIgnoreCase("health"))){
-                return false;
+    private boolean checkActionSubjectsAvailable(ArrayList<String> actionSubjects){
+        for (String subject : actionSubjects){
+            if (!subject.isEmpty()){
+                if (!(currentLocation.checkEntityPresent(subject) || currentPlayer.checkInventoryContains(subject) ||
+                        subject.equalsIgnoreCase(currentLocation.getName()))){
+                    return false;
+                }
             }
         }
         return true;
+    }
+
+    private boolean checkConsumedEntitiesAvailable(ArrayList<String> consumedEntities){
+        for (String consumedEntity : consumedEntities){
+            if (!consumedEntity.isEmpty()){
+                if (!(currentLocation.checkEntityPresent(consumedEntity) || currentPlayer.checkInventoryContains(consumedEntity)
+                        || currentLocation.checkIfPathTo(consumedEntity) || consumedEntity.equalsIgnoreCase("health"))){
+                    return false;
+                }
+            }
+        }
+        return true;
+
     }
 
     private boolean checkNoExtraneousEntities(GameAction action) throws IOException {

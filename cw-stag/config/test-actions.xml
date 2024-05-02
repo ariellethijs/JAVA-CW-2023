@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<actions>
+    <action>
+        <triggers>
+            <keyphrase>open</keyphrase>
+            <keyphrase>unlock</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>trapdoor</entity>
+            <entity>key</entity>
+        </subjects>
+        <consumed>
+            <entity>key</entity>
+        </consumed>
+        <produced>
+            <entity>cellar</entity>
+        </produced>
+        <narration>You unlock the trapdoor and see steps leading down into a cellar</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>chop</keyphrase>
+            <keyphrase>cut</keyphrase>
+            <keyphrase>cutdown</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>tree</entity>
+            <entity>axe</entity>
+        </subjects>
+        <consumed>
+            <entity>tree</entity>
+        </consumed>
+        <produced>
+            <entity>log</entity>
+        </produced>
+        <narration>You cut down the tree with the axe</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>drink</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>potion</entity>
+        </subjects>
+        <consumed>
+            <entity>potion</entity>
+        </consumed>
+        <produced>
+            <entity>health</entity>
+        </produced>
+        <narration>You drink the potion and your health improves</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>fight</keyphrase>
+            <keyphrase>hit</keyphrase>
+            <keyphrase>attack</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>elf</entity>
+        </subjects>
+        <consumed>
+            <entity>health</entity>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>You attack the elf, but he fights back and you lose some health</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>play</keyphrase>
+            <keyphrase>blow</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>flute</entity>
+            <entity>forest</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+            <entity>desert</entity>
+        </produced>
+        <narration>You play the magic flute, a magic portal opens up and you feel the hot desert sun through it's glow</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>play</keyphrase>
+            <keyphrase>blow</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>flute</entity>
+            <entity>desert</entity>
+        </subjects>
+        <consumed>
+            <entity>forest</entity>
+        </consumed>
+        <produced>
+            <entity>rat</entity>
+        </produced>
+        <narration>You play the magic flute, the magic portal back to the forest closes up !!! But you hear a weird snuffling behind you ...</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>cut</keyphrase>
+            <keyphrase>slice</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>elf</entity>
+            <entity>sword</entity>
+        </subjects>
+        <consumed>
+            <entity>elf</entity>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>You attack the elf with the sword, he's no match for the mighty blade! Bye bye mean elf!</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>stroke</keyphrase>
+            <keyphrase>pet</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>rat</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+            <entity>lakeside</entity>
+        </produced>
+        <narration>You brave your crippling fear of rodents and give the little rat a pat. He quickly burrows into the ground, revealing a tunnel down ...</narration>
+    </action>
+
+    <action>
+        <triggers>
+            <keyphrase>swim</keyphrase>
+            <keyphrase>dive</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>lake</entity>
+        </subjects>
+        <consumed>
+            <entity>health</entity>
+        </consumed>
+        <produced>
+        </produced>
+        <narration>You swim in the beautiful water, with every stroke you feel your body get weaker. You quickly climb out of the water, but you can't escape the urge to dive back in ...</narration>
+    </action>
+
+</actions>
