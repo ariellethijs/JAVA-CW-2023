@@ -1,10 +1,9 @@
 package edu.uob;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 public class CommandHandler {
     private final HashMap<String, Location> gameLayout;
@@ -318,22 +317,13 @@ public class CommandHandler {
         int validActionCount = 0;
 
         for (GameAction action : actions){
-            if (checkSubjectsInCommand(action, incomingCommand) && checkActionSubjectsAvailable(action.getActionSubjects())){
-                if (checkNoExtraneousEntities(action)){
-                    if (checkConsumedEntitiesAvailable(action.getConsumedEntities())){
-                        if (validAction != action){
-                            // If the trigger word points to a different action, increment the number of valid actions
-                            validAction = action;
-                            validActionCount++;
-                        }
-                    } else {
-                        throw new IOException(currentPlayer.getName() + " cannot repeat actions which have already had permanent consequences");
-                    }
-                } else {
-                    throw new IOException(currentPlayer.getName() + " isn't sure what to do - don't include extraneous objects in action calls");
-                }
+            if (validAction != action && checkActionValidity(action, incomingCommand)){
+                // Track the number of unique valid actions presented by the command
+                validAction = action;
+                validActionCount++;
             }
         }
+
         if (validActionCount == 1){
             return validAction;
         } else if (validActionCount == 0){
@@ -341,6 +331,11 @@ public class CommandHandler {
         } else {
             throw new IOException(currentPlayer.getName() + " isn't sure what to do - which open action do you want to perform?");
         }
+    }
+
+    boolean checkActionValidity(GameAction action, String incomingCommand) throws IOException {
+        return checkSubjectsInCommand(action, incomingCommand) && checkActionSubjectsAvailable(action.getActionSubjects())
+                && checkNoExtraneousEntities(action) && checkConsumedEntitiesAvailable(action.getConsumedEntities());
     }
 
     private boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
@@ -360,12 +355,12 @@ public class CommandHandler {
         return true;
     }
 
-    private boolean checkConsumedEntitiesAvailable(ArrayList<String> consumedEntities){
+    private boolean checkConsumedEntitiesAvailable(ArrayList<String> consumedEntities) throws IOException {
         for (String consumedEntity : consumedEntities){
             if (!consumedEntity.isEmpty()){
                 if (!(currentLocation.checkEntityPresent(consumedEntity) || currentPlayer.checkInventoryContains(consumedEntity)
                         || currentLocation.checkIfPathTo(consumedEntity) || consumedEntity.equalsIgnoreCase("health"))){
-                    return false;
+                    throw new IOException(currentPlayer.getName() + " cannot repeat actions which have already had permanent consequences");
                 }
             }
         }
@@ -378,7 +373,7 @@ public class CommandHandler {
         for (String commandToken : command){
             if (checkEntityExistsInGame(commandToken) && !actionSubjects.contains(commandToken)){
                 // If there is an entity in the command which exists in the game, but is not a subject
-                return false;
+                throw new IOException(currentPlayer.getName() + " isn't sure what to do - don't include extraneous objects in action calls");
             }
         }
         return true;

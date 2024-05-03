@@ -61,7 +61,12 @@ public class XMLFileReader extends GameFileReader {
 
         for (int i = 0; i < childNodes.getLength(); i++){
             Node childNode = childNodes.item(i);
-            String nodeText = childNode.getTextContent().trim().toLowerCase();
+            String nodeText;
+            if (!tagName.equals("narration")){
+                nodeText = childNode.getTextContent().trim().toLowerCase();
+            } else {
+                nodeText = childNode.getTextContent().trim();
+            }
             if (!nodeText.isEmpty() && !checkIfKeyword(nodeText)){
                 subElementKeyPhrases.add(nodeText);
             } else if (childNodes.getLength() == 1 && nodeText.isEmpty() && optional){

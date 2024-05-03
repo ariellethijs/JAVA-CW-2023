@@ -39,7 +39,6 @@ public class CustomSTAGTests {
         assertTrue(sendCommandToServer("arielle: look").contains("SWORD"));
         sendCommandToServer("arielle: get sword");
         sendCommandToServer("arielle: goto forest");
-        // Drop sword here so I can kill elf l8r, but also can die in desert hehe
         sendCommandToServer("arielle: drop sword");
         sendCommandToServer("arielle: goto desert");
 
