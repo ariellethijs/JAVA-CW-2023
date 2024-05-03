@@ -96,24 +96,24 @@ class ExampleSTAGTests {
         // Attempting furniture pickup:
         assertTrue(sendCommandToServer("Kisshan: get trapdoor").contains("kisshan tries to pick up the trapdoor but it seems to be fixed in place - players cannot pick up items of furniture"));
         // Attempting pickup of an item not in the location:
-        assertTrue(sendCommandToServer("Kisshan: get hammer").contains("can't see the item you're referring to"));
+        assertTrue(sendCommandToServer("Kisshan: get hammer").contains("kisshan isn't sure what you want to do - be more specific"));
         // Attempting multiple item pickup:
-        assertTrue(sendCommandToServer("Kisshan: get potion axe").contains("kisshan can't multi-task - only handle one object at a time"));
+        assertTrue(sendCommandToServer("Kisshan: get potion axe").contains("kisshan can't multi-task - you can only goto one location at a time, or handle one item at a time"));
 
       // Drop command tests:
         // No item specified:
-        assertTrue(sendCommandToServer("Kisshan: drop").contains("can't see the item you're referring to"));
+        assertTrue(sendCommandToServer("Kisshan: drop").contains("kisshan isn't sure what you want to do - be more specific"));
         // Item player doesn't have:
         assertTrue(sendCommandToServer("Kisshan: drop axe").contains("kisshan can't see a axe in their inventory - try running inventory or inv to see contents"));
         // Item another player has:
         sendCommandToServer("Tom: get potion");
-        assertTrue(sendCommandToServer("Kisshan: get potion").contains("can't see the item you're referring to"));
+        assertTrue(sendCommandToServer("Kisshan: get potion").contains("kisshan can't see a potion anywhere - try running look to see objects in the area"));
 
       // Goto command tests:
         // No destination specified:
-        assertTrue(sendCommandToServer("Kisshan: goto").contains("kisshan isn't sure where you want to go - be more specific"));
+        assertTrue(sendCommandToServer("Kisshan: goto").contains("kisshan isn't sure what you want to do - be more specific"));
         // No location with that name:
-        assertTrue(sendCommandToServer("Kisshan: goto library").contains("kisshan isn't sure where you want to go - be more specific"));
+        assertTrue(sendCommandToServer("Kisshan: goto library").contains("kisshan isn't sure what you want to do - be more specific"));
         // No path to location from current location:
         assertTrue(sendCommandToServer("Kisshan: goto cellar").contains("kisshan can't see a way to cellar from here - try running look to see available paths"));
   }

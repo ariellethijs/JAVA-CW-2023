@@ -17,7 +17,6 @@ import java.util.HashSet;
 
 public class XMLFileReader extends GameFileReader {
     private final HashMap<String, HashSet<GameAction>> allGameActions;
-
     public XMLFileReader(File actionsFile) throws ParserConfigurationException, IOException, SAXException {
         allGameActions = new HashMap<>();
         openAndReadActionsFile(actionsFile);
@@ -76,5 +75,4 @@ public class XMLFileReader extends GameFileReader {
         return subElementKeyPhrases;
     }
     public HashMap<String, HashSet<GameAction>> getAllGameActions(){ return allGameActions; }
-
 }

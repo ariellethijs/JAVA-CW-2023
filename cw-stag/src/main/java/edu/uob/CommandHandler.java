@@ -2,10 +2,9 @@ package edu.uob;
 
 import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class CommandHandler {
+    CommandParser commandParser;
     private final HashMap<String, Location> gameLayout;
     private final HashMap<String, HashSet<GameAction>> possibleActions;
     private GamePlayer currentPlayer;
@@ -13,11 +12,9 @@ public class CommandHandler {
     private final Location startLocation;
     private final HashMap<String, GamePlayer> allPlayers;
     private int playerIndex;
-    private String[] command;
-    private final Set<String> commandKeywords = Set.of("inv", "inventory", "get", "drop",
-            "goto", "look", "health");
 
     public CommandHandler(HashMap<String, Location> layout, HashMap<String, HashSet<GameAction>> actions, String firstLocation){
+        commandParser = new CommandParser(layout, actions);
         gameLayout = layout;
         possibleActions = actions;
         startLocation = gameLayout.get(firstLocation);
@@ -26,24 +23,19 @@ public class CommandHandler {
     }
 
     public String handleCommand(String incomingCommand) throws IOException {
-        incomingCommand = incomingCommand.toLowerCase();
-        command = incomingCommand.trim().split("\\s+");
-        currentPlayer = determineCommandPlayer(command[0]);
-        currentLocation = currentPlayer.getCurrentLocation();
+        if (commandParser.parseCommand(incomingCommand)) {
+            currentPlayer = determineCommandPlayer(commandParser.getPlayerName());
+            currentLocation = currentPlayer.getCurrentLocation();
 
-        if (checkNoMultipleKeywords(incomingCommand)){
-            String commandKeyword = findSingleMatch(commandKeywords, incomingCommand);
-            String actionTrigger = findSingleMatch(possibleActions.keySet(), incomingCommand);
-
-            if (commandKeyword != null){
-                return handleBuiltInCommand(commandKeyword);
-            } else if (actionTrigger != null){
-                return processGameAction(incomingCommand, actionTrigger);
+            if (commandParser.getCommandKeyword() != null){
+                return handleBuiltInCommand(commandParser.getCommandKeyword());
+            } else if (!commandParser.getCommandTriggers().isEmpty()){
+                return processGameAction(commandParser.getCommandTriggers());
             } else {
-                throw new IOException("Not sure what you mean - try a valid command next time");
+                throw new IOException(currentPlayer.getName() +" can't multi-task - enter one command at a time");
             }
         } else {
-            throw new IOException(currentPlayer.getName() +" can't multi-task - enter one command at a time");
+            throw new IOException("Not sure what you mean - try a valid command next time");
         }
     }
 
@@ -88,8 +80,8 @@ public class CommandHandler {
     }
 
     private String processGetOrDrop(String commandType) throws IOException {
-        String relevantEntityName = determineRelevantEntity();
-
+        commandParser.storeEntityForInbuilt();
+        String relevantEntityName = commandParser.getInbuiltCommandEntity();
         if (commandType.equals("get")){
             return pickUpItem(relevantEntityName);
         } else if (currentPlayer.getInventory().containsKey(relevantEntityName)){
@@ -122,7 +114,8 @@ public class CommandHandler {
     }
 
     private String processGoTo() throws IOException {
-        String potentialDestination = determineDestination();
+        commandParser.storeEntityForInbuilt();
+        String potentialDestination = commandParser.getInbuiltCommandEntity();
         if (gameLayout.containsKey(potentialDestination)){
             if (currentLocation.getPathsTo().contains(potentialDestination)){
                 currentLocation.removeEntity(currentPlayer, false);
@@ -141,25 +134,22 @@ public class CommandHandler {
         }
     }
 
-    private String processGameAction(String incomingCommand, String triggerPhrase) throws IOException {
-        if (!triggerPhrase.isEmpty()){
-            GameAction validAction = determineAction(possibleActions.get(triggerPhrase), incomingCommand);
-            executeConsumedEntities(validAction.getConsumedEntities());
-            executeProducedEntities(validAction.getProducedEntities());
-            String response = validAction.getNarration();
-            if (currentPlayer.getHealth() <= 0){
-                respawnPlayer();
-                response = response + "\n" +currentPlayer.getName()+ " died and lost all of their items \n\n...\n\n"
+    private String processGameAction(Set<String> potentialTriggers) throws IOException {
+        GameAction validAction = determineAction(potentialTriggers);
+        executeConsumedEntities(validAction.getConsumedEntities());
+        executeProducedEntities(validAction.getProducedEntities());
+        String response = validAction.getNarration();
+
+        if (currentPlayer.getHealth() <= 0){
+            respawnPlayer();
+            response = response + "\n" +currentPlayer.getName()+ " died and lost all of their items \n\n...\n\n"
                         +currentPlayer.getName()+ " opens their eyes to find themselves back in the "
                         +startLocation.getName() + "\n ... feeling much lighter - player died and lost all their items";
-            }
-            return response;
-        } else {
-            throw new IOException(currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
         }
+        return response;
     }
 
-    private void executeConsumedEntities(ArrayList<String> consumed) throws IOException {
+    private void executeConsumedEntities(Set<String> consumed) throws IOException {
         Location storeRoom = gameLayout.get("storeroom");
         for (String consumedEntity : consumed) {
             if (consumedEntity.equalsIgnoreCase("health")){
@@ -177,7 +167,7 @@ public class CommandHandler {
         }
     }
 
-    private void executeProducedEntities(ArrayList<String> produced) throws IOException {
+    private void executeProducedEntities(Set<String> produced) throws IOException {
         for (String producedName : produced){
             if (producedName.equalsIgnoreCase("health")){
                 currentPlayer.gainHealth();
@@ -201,57 +191,19 @@ public class CommandHandler {
         currentPlayer.setLocation(startLocation);
     }
 
-
                  /*  HELPER FUNCTIONS  */
 
-    private GamePlayer determineCommandPlayer(String name) throws IOException {
-        if (name.charAt(name.length()-1) == ':'){
-            name = name.substring(0, (name.length() - 1));
-            String nameAsKey = name.toLowerCase();
-            if (allPlayers.containsKey(nameAsKey)){
-                return allPlayers.get(nameAsKey);
-            } else {
-                playerIndex++;
-                GamePlayer newPlayer = new GamePlayer(name, playerIndex, startLocation);
-                allPlayers.put(nameAsKey, newPlayer);
-                startLocation.addCharacterToLocation(newPlayer);
-                return newPlayer;
-            }
+    private GamePlayer determineCommandPlayer(String name){
+        String nameAsKey = name.toLowerCase();
+        if (allPlayers.containsKey(nameAsKey)){
+            return allPlayers.get(nameAsKey);
         } else {
-            throw new IOException("Not sure whose playing - start with your name next time");
+            playerIndex++;
+            GamePlayer newPlayer = new GamePlayer(name, playerIndex, startLocation);
+            allPlayers.put(nameAsKey, newPlayer);
+            startLocation.addCharacterToLocation(newPlayer);
+            return newPlayer;
         }
-    }
-
-    private boolean checkNoMultipleKeywords(String incomingCommand) throws IOException {
-        int keywordCount = countOccurrences(commandKeywords, incomingCommand);
-        int possibleActionCount = countOccurrences(possibleActions.keySet(), incomingCommand);
-
-        if  (((keywordCount == 1) && (possibleActionCount == 0)) || ((keywordCount == 0) && (possibleActionCount >= 1))){
-            return true;
-        } else if (keywordCount == 0 && possibleActionCount == 0) {
-            throw new IOException(currentPlayer.getName() + " isn't sure what you mean - try a valid command next time");
-        } else {
-            return false;
-        }
-    }
-
-    private int countOccurrences(Set<String> keywords, String incomingCommand){
-        int count = 0;
-        for (String keyword : keywords){
-            if (incomingCommand.contains(keyword)){
-                count++;
-            }
-        }
-        return count;
-    }
-
-    private String findSingleMatch(Set<String> keywords, String incomingCommand){
-        for (String keyword : keywords){
-            if (incomingCommand.contains(keyword)){
-                return keyword;
-            }
-        }
-        return null;
     }
 
     private StringBuilder iterateThroughLocationEntities(StringBuilder response, HashMap<String, GameEntity> entityMap){
@@ -269,58 +221,17 @@ public class CommandHandler {
         return response.append("[").append(entity.getName().toUpperCase()).append("] ").append(entity.getDescription()).append("\n");
     }
 
-    private String determineRelevantEntity() throws IOException {
-        String relevantEntity = "";
-        int entityCount = 0;
-
-        for (String token : command) {
-            if (checkEntityExistsInGame(token) || currentPlayer.checkInventoryContains(token)){  entityCount++; }
-            if (currentLocation.checkEntityPresent(token) || currentPlayer.checkInventoryContains(token)){
-                relevantEntity = token;
-            }
-        }
-
-        if ((entityCount == 1) && !relevantEntity.isEmpty()){
-            return relevantEntity;
-        } else if (relevantEntity.isEmpty()){
-            throw new IOException(currentPlayer.getName()+ " can't see the item you're referring to");
-        } else if (entityCount == 0){
-            throw new IOException(currentPlayer.getName() + " isn't sure what you mean - be more specific");
-        } else {
-            throw new IOException(currentPlayer.getName() + " can't multi-task - only handle one object at a time");
-        }
-    }
-
-    private String determineDestination() throws IOException {
-        String destination = "";
-        int destinationCount = 0;
-
-        for (String token : command){
-            if (gameLayout.containsKey(token)){
-                destination = token;
-                destinationCount++;
-            }
-        }
-
-        if (destinationCount == 1){
-            return destination;
-        } else if (destinationCount == 0){
-            throw new IOException(currentPlayer.getName() + " isn't sure where you want to go - be more specific");
-        } else {
-            throw new IOException(currentPlayer.getName() + " can't be in two places at once - " +
-                    "you can only goto one location at a time");
-        }
-    }
-
-    private GameAction determineAction(HashSet<GameAction> actions, String incomingCommand) throws IOException {
+    private GameAction determineAction(Set<String> potentialTriggers) throws IOException {
         GameAction validAction = null;
         int validActionCount = 0;
 
-        for (GameAction action : actions){
-            if (validAction != action && checkActionValidity(action, incomingCommand)){
-                // Track the number of unique valid actions presented by the command
-                validAction = action;
-                validActionCount++;
+        for (String potentialTrigger : potentialTriggers) {
+            for (GameAction action : possibleActions.get(potentialTrigger)) {
+                if (validAction != action && checkActionValidity(action)) {
+                    // Track the number of unique valid actions presented by the command
+                    validAction = action;
+                    validActionCount++;
+                }
             }
         }
 
@@ -333,17 +244,12 @@ public class CommandHandler {
         }
     }
 
-    boolean checkActionValidity(GameAction action, String incomingCommand) throws IOException {
-        return checkSubjectsInCommand(action, incomingCommand) && checkActionSubjectsAvailable(action.getActionSubjects())
-                && checkNoExtraneousEntities(action) && checkConsumedEntitiesAvailable(action.getConsumedEntities());
+    boolean checkActionValidity(GameAction action) throws IOException {
+        return commandParser.checkSubjectsInCommand(action) && checkActionSubjectsAvailable(action.getActionSubjects())
+                && commandParser.checkNoExtraneousEntities(action) && checkConsumedEntitiesAvailable(action.getConsumedEntities());
     }
 
-    private boolean checkSubjectsInCommand(GameAction action, String incomingCommand){
-        int subjectInCommandCount = countOccurrences(new HashSet<>(action.getActionSubjects()), incomingCommand);
-        return (subjectInCommandCount >= 1);
-    }
-
-    private boolean checkActionSubjectsAvailable(ArrayList<String> actionSubjects){
+    private boolean checkActionSubjectsAvailable(Set<String> actionSubjects){
         for (String subject : actionSubjects){
             if (!subject.isEmpty()){
                 if (!(currentLocation.checkEntityPresent(subject) || currentPlayer.checkInventoryContains(subject) ||
@@ -355,7 +261,7 @@ public class CommandHandler {
         return true;
     }
 
-    private boolean checkConsumedEntitiesAvailable(ArrayList<String> consumedEntities) throws IOException {
+    private boolean checkConsumedEntitiesAvailable(Set<String> consumedEntities) throws IOException {
         for (String consumedEntity : consumedEntities){
             if (!consumedEntity.isEmpty()){
                 if (!(currentLocation.checkEntityPresent(consumedEntity) || currentPlayer.checkInventoryContains(consumedEntity)
@@ -366,30 +272,6 @@ public class CommandHandler {
         }
         return true;
 
-    }
-
-    private boolean checkNoExtraneousEntities(GameAction action) throws IOException {
-        Set <String> actionSubjects = new HashSet<>(action.getActionSubjects());
-        for (String commandToken : command){
-            if (checkEntityExistsInGame(commandToken) && !actionSubjects.contains(commandToken)){
-                // If there is an entity in the command which exists in the game, but is not a subject
-                throw new IOException(currentPlayer.getName() + " isn't sure what to do - don't include extraneous objects in action calls");
-            }
-        }
-        return true;
-    }
-
-    private boolean checkEntityExistsInGame(String entityName) {
-        return (checkEntityAnotherPlayerInventory(entityName) || checkEntityPlacedInGame(entityName));
-    }
-
-    private boolean checkEntityAnotherPlayerInventory(String entityName){
-        for (GamePlayer player : allPlayers.values()){
-            if ((player.checkInventoryContains(entityName)) && (player != currentPlayer)){
-                return true;
-            }
-        }
-        return false;
     }
 
     private boolean checkEntityPlacedInGame(String entityName){
