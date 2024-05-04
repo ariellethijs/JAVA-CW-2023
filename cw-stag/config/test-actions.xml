@@ -20,6 +20,23 @@
 
     <action>
         <triggers>
+            <keyphrase>open</keyphrase>
+            <keyphrase>unlock</keyphrase>
+        </triggers>
+        <subjects>
+            <entity>trapdoor</entity>
+            <entity>hammer</entity>
+        </subjects>
+        <consumed>
+        </consumed>
+        <produced>
+            <entity>cellar</entity>
+        </produced>
+        <narration>You bash open the trapdoor with the hammer and see steps leading down into a cellar</narration>
+    </action>
+
+    <action>
+        <triggers>
             <keyphrase>chop</keyphrase>
             <keyphrase>cut</keyphrase>
             <keyphrase>cutdown</keyphrase>

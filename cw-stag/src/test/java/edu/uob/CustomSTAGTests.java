@@ -61,9 +61,14 @@ public class CustomSTAGTests {
         assertTrue(sendCommandToServer("arielle: look").contains("CABIN"));
         sendCommandToServer("arielle: goto forest");
         sendCommandToServer("arielle: get key");
+        sendCommandToServer("arielle: get hammer");
         sendCommandToServer("arielle: get sword");
         sendCommandToServer("arielle: goto cabin");
-        sendCommandToServer("arielle: unlock trapdoor");
+
+        // Testing resolving multiple open actions with adding more subjects
+        assertEquals("arielle isn't sure what to do - which open action do you want to perform?", sendCommandToServer("arielle: unlock trapdoor"));
+        assertEquals("You bash open the trapdoor with the hammer and see steps leading down into a cellar", sendCommandToServer("arielle: unlock trapdoor with hammer"));
+
         sendCommandToServer("arielle: goto cellar");
         sendCommandToServer("arielle: look");
 

@@ -98,15 +98,17 @@ public class CommandParser {
         }
     }
 
-    public boolean checkSubjectsInCommand(GameAction action){
+    public int countSubjectsInCommand(GameAction action){
+        int validSubjectsCount = 0;
+
         for (String subject : action.getActionSubjects()){
             for (String token : tokenizedCommand) {
                 if (token.equalsIgnoreCase(subject)) {
-                    return true;
+                    validSubjectsCount++;
                 }
             }
         }
-        return false;
+        return validSubjectsCount;
     }
 
     public boolean checkNoExtraneousEntities(GameAction action) throws IOException {
@@ -114,7 +116,8 @@ public class CommandParser {
         for (String commandToken : tokenizedCommand){
             if (allGameEntities.contains(commandToken) && !actionSubjects.contains(commandToken)){
                 // If there is an entity in the command which exists in the game, but is not a subject
-                throw new IOException(playerName + " isn't sure what to do - don't include extraneous objects in action calls");
+                //throw new IOException(playerName + " isn't sure what to do - don't include extraneous objects in action calls");
+                return false;
             }
         }
         return true;

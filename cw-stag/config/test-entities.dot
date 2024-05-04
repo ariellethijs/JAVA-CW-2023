@@ -24,6 +24,7 @@ digraph layout {
             subgraph artefacts {
                 node [shape = "diamond"];
                 key [description = "Brass key"];
+                hammer [description = "A heavy hammer"];
                 flute [description = "A magic flute"];
             }
             subgraph furniture {

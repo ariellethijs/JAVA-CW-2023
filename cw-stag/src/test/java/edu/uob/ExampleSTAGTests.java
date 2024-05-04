@@ -166,7 +166,7 @@ class ExampleSTAGTests {
       assertTrue(sendCommandToServer("Tom: Chop tree and get key").contains("tom can't multi-task - enter one command at a time"));
 
       // Extraneous entities
-      assertTrue(sendCommandToServer("Tom: chop tree with axe and potion").contains("tom isn't sure what to do - don't include extraneous objects in action calls"));
+      assertTrue(sendCommandToServer("Tom: chop tree with axe and potion").contains("tom isn't sure what to do - try entering a valid command next time"));
 
       // Different word order && decorated syntax
       assertTrue(sendCommandToServer("Tom: please use the axe to chop the tree").contains("You cut down the tree with the axe"));

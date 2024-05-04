@@ -224,13 +224,17 @@ public class CommandHandler {
     private GameAction determineAction(Set<String> potentialTriggers) throws IOException {
         GameAction validAction = null;
         int validActionCount = 0;
+        int highestValidSubjectsCount = 0;
 
         for (String potentialTrigger : potentialTriggers) {
             for (GameAction action : possibleActions.get(potentialTrigger)) {
-                if (validAction != action && checkActionValidity(action)) {
-                    // Track the number of unique valid actions presented by the command
-                    validAction = action;
-                    validActionCount++;
+                int currentActionsValidSubjects = commandParser.countSubjectsInCommand(action);
+                if (currentActionsValidSubjects >= highestValidSubjectsCount && currentActionsValidSubjects != 0){
+                    highestValidSubjectsCount = currentActionsValidSubjects;
+                    if (validAction != action && checkActionValidity(action)){
+                        validAction = action;
+                        validActionCount++;
+                    }
                 }
             }
         }
@@ -245,7 +249,7 @@ public class CommandHandler {
     }
 
     boolean checkActionValidity(GameAction action) throws IOException {
-        return commandParser.checkSubjectsInCommand(action) && checkActionSubjectsAvailable(action.getActionSubjects())
+        return checkActionSubjectsAvailable(action.getActionSubjects())
                 && commandParser.checkNoExtraneousEntities(action) && checkConsumedEntitiesAvailable(action.getConsumedEntities());
     }
 
