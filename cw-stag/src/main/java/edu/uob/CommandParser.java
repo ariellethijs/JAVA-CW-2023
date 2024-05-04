@@ -77,10 +77,10 @@ public class CommandParser {
     }
 
     private void storeOccurrences(Set<String> keywords, String type){
-        for (String keyword : keywords){
-            if (command.contains(keyword)){
-                if (type.equals("triggers")){ commandTriggers.add(keyword); }
-                if (type.equals("inbuilt")){ commandKeywords.add(keyword); }
+        for (String token : tokenizedCommand){
+            if (keywords.contains(token)){
+                if (type.equals("triggers")){ commandTriggers.add(token); }
+                if (type.equals("inbuilt")){ commandKeywords.add(token); }
             }
         }
     }
@@ -100,8 +100,10 @@ public class CommandParser {
 
     public boolean checkSubjectsInCommand(GameAction action){
         for (String subject : action.getActionSubjects()){
-            if (command.contains(subject)){
-                return true;
+            for (String token : tokenizedCommand) {
+                if (token.equalsIgnoreCase(subject)) {
+                    return true;
+                }
             }
         }
         return false;

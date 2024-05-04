@@ -154,6 +154,14 @@ class ExampleSTAGTests {
       sendCommandToServer("Tom: get axe");
       sendCommandToServer("Tom: goto forest");
 
+
+      // Invalid gibberish including trigger word
+      assertEquals("tom isn't sure what you mean - try a valid command next time", sendCommandToServer("Tom: gfdjifhskchop tree"));
+
+      // Invalid gibberish including entity name
+      assertEquals("tom isn't sure what to do - try entering a valid command next time", sendCommandToServer("Tom: chop treefhdshsl"));
+      assertEquals("tom isn't sure what you want to do - be more specific", sendCommandToServer("tom: get fhjakhfksakey"));
+
       // Invalid composite commands
       assertTrue(sendCommandToServer("Tom: Chop tree and get key").contains("tom can't multi-task - enter one command at a time"));
 
