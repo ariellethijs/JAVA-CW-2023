@@ -29,7 +29,7 @@ public class ExtendedSTAGTests {
         sendCommandToServer("Tom: get axe");
         sendCommandToServer("Tom: get coin");
         sendCommandToServer("Tom: goto forest");
-        assertTrue(sendCommandToServer("Tom: chop the tree").contains("You cut down the tree with the axe"));
+        assertTrue(sendCommandToServer("Tom: cut down the tree").contains("You cut down the tree with the axe"));
         sendCommandToServer("Tom: get log");
 
         sendCommandToServer("Tom: get key");

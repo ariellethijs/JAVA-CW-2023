@@ -45,7 +45,7 @@ public class XMLFileReader extends GameFileReader {
             }
         }
     }
-    private GameAction storeActionContents(Element action) throws IOException {
+    private GameAction storeActionContents(Element action){
         ArrayList<String> subjects = storeSubElementValues(action, "subjects", false);
         ArrayList<String> consumedEntities = storeSubElementValues(action, "consumed", true);
         ArrayList<String> producedEntities = storeSubElementValues(action, "produced", true);

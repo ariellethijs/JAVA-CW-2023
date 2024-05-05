@@ -37,6 +37,7 @@ public class CommandParser {
 
     void setUpForNewCommand(String unprocessedCommand){
         command = unprocessedCommand.toLowerCase();
+        tokenizedCommand = command.trim().split("\\s+");
         commandTriggers = new HashSet<>();
         commandKeywords = new HashSet<>();
         inbuiltCommandEntities = new HashSet<>();
@@ -45,13 +46,7 @@ public class CommandParser {
     boolean parseCommand(String unprocessedCommand) throws IOException {
         setUpForNewCommand(unprocessedCommand);
         determinePlayerName();
-        tokenizedCommand = command.trim().split("\\s+");
-
-        if (checkNoMultipleKeywords()){
-            return true;
-        } else {
-            throw new IOException(playerName +" can't multi-task - enter one command at a time");
-        }
+        return checkNoMultipleKeywords();
     }
 
     void determinePlayerName() throws IOException {
@@ -64,25 +59,69 @@ public class CommandParser {
     }
 
     private boolean checkNoMultipleKeywords() throws IOException {
-        storeOccurrences(restrictedKeywords, "inbuilt");
-        storeOccurrences(possibleActions.keySet(), "triggers");
+        storeCommandKeywords();
+        storeCommandTriggers();
 
         if  ((commandKeywords.size() == 1 && commandTriggers.isEmpty()) || (commandKeywords.isEmpty()) && !commandTriggers.isEmpty()){
             return true;
         } else if (commandKeywords.isEmpty()){
             throw new IOException(playerName + " isn't sure what you mean - try a valid command next time");
         } else {
-            return false;
+            throw new IOException(playerName +" can't multi-task - enter one command at a time");
         }
     }
 
-    private void storeOccurrences(Set<String> keywords, String type){
+    private void storeCommandKeywords(){
         for (String token : tokenizedCommand){
-            if (keywords.contains(token)){
-                if (type.equals("triggers")){ commandTriggers.add(token); }
-                if (type.equals("inbuilt")){ commandKeywords.add(token); }
+            if (restrictedKeywords.contains(token)){
+                commandKeywords.add(token);
             }
         }
+    }
+
+    private void storeCommandTriggers(){
+        for (String triggerPhrase : possibleActions.keySet()){
+            if (triggerPhrase.contains(" ")){
+                if (checkForMultiWordTrigger(triggerPhrase)){
+                    commandTriggers.add(triggerPhrase);
+                }
+            } else if (checkCommandForWord(triggerPhrase)){
+                commandTriggers.add(triggerPhrase);
+            }
+        }
+    }
+
+    private boolean checkForMultiWordTrigger(String triggerPhrase){
+        String[] tokenizedTrigger = triggerPhrase.trim().split("\\s+");
+        if (checkCommandForWord(tokenizedTrigger[0])){
+            for (int commandIndex = findCommandIndexOf(tokenizedTrigger[0]), triggerIndex = 0;
+                 commandIndex < tokenizedTrigger.length; commandIndex++, triggerIndex++){
+                if (!tokenizedCommand[commandIndex].equalsIgnoreCase(tokenizedTrigger[triggerIndex])){
+                    return false;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
+
+    private boolean checkCommandForWord(String searchToken){
+        for (String commandToken : tokenizedCommand){
+            if (commandToken.equalsIgnoreCase(searchToken)){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int findCommandIndexOf(String searchToken){
+        for (int i = 0; i < tokenizedCommand.length; i++){
+            if (tokenizedCommand[i].equalsIgnoreCase(searchToken)){
+                return i;
+            }
+        }
+        // Should never return this as always checks it contains this first
+        return -1;
     }
 
     public void storeEntityForInbuilt() throws IOException {
@@ -111,12 +150,10 @@ public class CommandParser {
         return validSubjectsCount;
     }
 
-    public boolean checkNoExtraneousEntities(GameAction action) throws IOException {
+    public boolean checkNoExtraneousEntities(GameAction action){
         Set <String> actionSubjects = new HashSet<>(action.getActionSubjects());
         for (String commandToken : tokenizedCommand){
             if (allGameEntities.contains(commandToken) && !actionSubjects.contains(commandToken)){
-                // If there is an entity in the command which exists in the game, but is not a subject
-                //throw new IOException(playerName + " isn't sure what to do - don't include extraneous objects in action calls");
                 return false;
             }
         }
