@@ -22,6 +22,7 @@ public class GamePlayer extends Character {
     public void addToInventory(GameEntity entity){ currentInventory.put(entity.getName().toLowerCase(), entity); }
     public void removeFromInventory(String entityName){ currentInventory.remove(entityName); }
     public boolean checkInventoryContains(String artefactName){ return (currentInventory.containsKey(artefactName.toLowerCase())); }
+    public GameEntity getItemFromPlayerInv(String artefactName){ return currentInventory.get(artefactName); }
     public int getHealth(){ return health; }
     public void resetHealth(){ health = startHealth; }
     public void loseHealth(){

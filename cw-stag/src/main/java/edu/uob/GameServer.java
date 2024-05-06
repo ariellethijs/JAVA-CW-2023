@@ -30,14 +30,18 @@ public final class GameServer {
     */
     public GameServer(File entitiesFile, File actionsFile) {
         try {
+            // Store entity information from the dot file
             DotFileReader entityFileReader = new DotFileReader();
             entityFileReader.openAndReadEntityFile(entitiesFile);
+            // Get the game map layout and start location name from the dot file reader
             HashMap<String, Location> gameLayout = entityFileReader.getGameLocations();
             String startLocationName = entityFileReader.getStartLocation();
 
+            // Store and retrieve action information from the XML file
             XMLFileReader actionFileReader = new XMLFileReader(actionsFile);
             HashMap<String, HashSet<GameAction>> possibleActions = actionFileReader.getAllGameActions();
 
+            // Generate a command handler for the game setup
             commandHandler = new CommandHandler(gameLayout, possibleActions, startLocationName);
         } catch (IOException | ParserConfigurationException | SAXException e) {
             System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
@@ -52,11 +56,13 @@ public final class GameServer {
     */
     public String handleCommand(String command) {
         try {
+            // Return the resulting response from the command handler
             String response = commandHandler.handleCommand(command);
             System.out.println(response); // FOR DEBUGGING REMOVE L8R
             return response;
         } catch (IOException e){
             System.out.println(e.getMessage()); // FOR DEBUGGING REMOVE L8R
+            // Return any resulting exceptions from the command handler
             return e.getMessage();
         }
     }

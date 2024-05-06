@@ -12,8 +12,10 @@ public class CommandParser {
     private Set<String> allGameEntities;
     private Set<String> commandTriggers;
     private Set<String> commandKeywords;
-
     private Set<String> inbuiltCommandEntities;
+    private Location currentLocation;
+    private GamePlayer currentPlayer;
+    private Set<GameAction> validActions;
     private final Set<String> restrictedKeywords = Set.of("inv", "inventory", "get", "drop",
             "goto", "look", "health");
 
@@ -135,6 +137,66 @@ public class CommandParser {
             throw new IOException(playerName + " can't multi-task - " +
                     "you can only goto one location at a time, or handle one item at a time");
         }
+    }
+
+    public GameAction determineValidAction(Set<String> potentialTriggers) throws IOException {
+        int highestValidSubjectsCount = 0;
+
+        for (String potentialTrigger : potentialTriggers) {
+            for (GameAction action : possibleActions.get(potentialTrigger)) {
+                int currentActionsValidSubjects = countSubjectsInCommand(action);
+                if (currentActionsValidSubjects >= highestValidSubjectsCount && currentActionsValidSubjects != 0){
+                    highestValidSubjectsCount = currentActionsValidSubjects;
+                    if (!validActions.contains(action) && checkActionValidity(action)){
+                        validActions.add(action);
+                    }
+                }
+            }
+        }
+
+        if (validActions.size() == 1){
+            return validActions.stream().findFirst().orElse(null);
+        } else if (validActions.isEmpty()){
+            throw new IOException(currentPlayer.getName() + " isn't sure what to do - try entering a valid command next time");
+        } else {
+            throw new IOException(currentPlayer.getName() + " isn't sure what to do - which open action do you want to perform?");
+        }
+    }
+
+    public void setUpForActionParsing(Location location, GamePlayer player){
+        currentLocation = location;
+        currentPlayer = player;
+        validActions = new HashSet<>();
+    }
+
+    private boolean checkActionValidity(GameAction action) throws IOException {
+        return checkActionSubjectsAvailable(action.getActionSubjects()) && checkNoExtraneousEntities(action)
+                && checkConsumedEntitiesAvailable(action.getConsumedEntities());
+    }
+
+    private boolean checkActionSubjectsAvailable(Set<String> actionSubjects){
+        for (String subject : actionSubjects){
+            if (!subject.isEmpty()){
+                if (!(currentLocation.checkEntityPresent(subject) || currentPlayer.checkInventoryContains(subject) ||
+                        subject.equalsIgnoreCase(currentLocation.getName()))){
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean checkConsumedEntitiesAvailable(Set<String> consumedEntities) throws IOException {
+        for (String consumedEntity : consumedEntities){
+            if (!consumedEntity.isEmpty()){
+                if (!(currentLocation.checkEntityPresent(consumedEntity) || currentPlayer.checkInventoryContains(consumedEntity)
+                        || currentLocation.checkIfPathTo(consumedEntity) || consumedEntity.equalsIgnoreCase("health"))){
+                    throw new IOException(currentPlayer.getName() + " cannot repeat actions which have already had permanent consequences");
+                }
+            }
+        }
+        return true;
+
     }
 
     public int countSubjectsInCommand(GameAction action){
