@@ -38,26 +38,46 @@ public class CommandParser {
     }
 
     void setUpForNewCommand(String unprocessedCommand){
+        // Store the new command for parsing
         command = unprocessedCommand.toLowerCase();
         tokenizedCommand = command.trim().split("\\s+");
+        // Set the storage for different elements of the command
         commandTriggers = new HashSet<>();
         commandKeywords = new HashSet<>();
         inbuiltCommandEntities = new HashSet<>();
     }
 
     boolean parseCommand(String unprocessedCommand) throws IOException {
+        // Reset values for new command parsing
         setUpForNewCommand(unprocessedCommand);
+        // Extract player name
         determinePlayerName();
+        // Return the result of extracting possible keywords and triggers
         return checkNoMultipleKeywords();
     }
 
     void determinePlayerName() throws IOException {
+        // If no : no player name in command
         if (command.contains(":")){
+            // Store everything before the : as the current player name
             playerName = command.substring(0, command.indexOf(':'));
+            if (!checkPlayerNameValidity()){
+                throw new IOException("Invalid player name - only include uppercase and lowercase letters, spaces, apostrophes and hyphens");
+            }
             command = command.substring(command.indexOf(':')+1);
         } else {
             throw new IOException("Not sure whose playing - start with your name next time");
         }
+    }
+
+    private boolean checkPlayerNameValidity(){
+        char[] tokenizedPlayerName = playerName.toCharArray();
+        for (char c : tokenizedPlayerName){
+            if (!java.lang.Character.isLetter(c) && c != ' ' && c != '\'' && c != '-'){
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean checkNoMultipleKeywords() throws IOException {

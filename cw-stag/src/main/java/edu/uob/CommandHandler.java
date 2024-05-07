@@ -6,7 +6,6 @@ import java.util.*;
 public class CommandHandler {
     CommandParser commandParser;
     private final HashMap<String, Location> gameLayout;
-    private final HashMap<String, HashSet<GameAction>> possibleActions;
     private GamePlayer currentPlayer;
     private Location currentLocation;
     private final Location startLocation;
@@ -17,7 +16,6 @@ public class CommandHandler {
         // Create a command parser for the game setup
         commandParser = new CommandParser(layout, actions);
         gameLayout = layout;
-        possibleActions = actions;
         // Determine the start location from it's name
         startLocation = gameLayout.get(firstLocation);
         // Create storage for all players
@@ -280,6 +278,7 @@ public class CommandHandler {
     }
 
     private boolean checkEntityPlacedInGame(String entityName){
+        // Check if the entity is in a location and not another player's inv
         for (Location location: gameLayout.values()){
             if (location.checkEntityPresent(entityName)){
                 return true;
@@ -289,11 +288,12 @@ public class CommandHandler {
     }
 
     private Location determineEntityLocation(String entityName) throws IOException {
+        // Determine the current location of an entity
         for (Location location : gameLayout.values()){
             if (location.checkEntityPresent(entityName)){
                 return location;
             }
         }
-        throw new IOException("Couldn't determine entity from location although already check for existence?"); // For debug !!
+        return null;
     }
 }
