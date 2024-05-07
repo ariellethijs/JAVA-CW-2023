@@ -151,8 +151,8 @@ class ExampleSTAGTests {
 
   @Test
     void testEdgeCaseBasicAction(){
-      // Invalid player name which includes numbers
-      assertEquals("Invalid player name - only include uppercase and lowercase letters, spaces, apostrophes and hyphens", sendCommandToServer("Tom2: get axe"));
+      // Invalid player name which includes numbers and invalid characters
+      assertEquals("Invalid player name - only include uppercase and lowercase letters, spaces, apostrophes and hyphens", sendCommandToServer("T0++++m2: get axe"));
 
       sendCommandToServer("Tom: get axe");
       sendCommandToServer("Tom: goto forest");

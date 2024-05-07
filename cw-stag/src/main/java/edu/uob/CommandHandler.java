@@ -294,6 +294,6 @@ public class CommandHandler {
                 return location;
             }
         }
-        return null;
+        throw new IOException("No produced entity by that name");
     }
 }

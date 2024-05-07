@@ -16,9 +16,13 @@ public class Location extends GameEntity {
         locationFurniture = new HashMap<>();
         locationCharacters = new HashMap<>();
     }
+
     public void addArtefactToLocation(Artefact a){ locationArtefacts.put(a.getName().toLowerCase(), a); }
+
     public void addFurnitureToLocation(Furniture f){ locationFurniture.put(f.getName().toLowerCase(), f); }
+
     public void addCharacterToLocation(Character c){ locationCharacters.put(c.getName().toLowerCase(), c); }
+
     public void addEntity(GameEntity entity){
         if (entity instanceof Artefact){
             addArtefactToLocation((Artefact) entity);
@@ -28,6 +32,7 @@ public class Location extends GameEntity {
             addFurnitureToLocation((Furniture) entity);
         }
     }
+
     public void removeEntity(GameEntity entity, boolean fromAction){
         if (entity instanceof Artefact){
             locationArtefacts.remove(entity.getName().toLowerCase());
@@ -37,17 +42,25 @@ public class Location extends GameEntity {
             locationFurniture.remove(entity.getName().toLowerCase());
         }
     }
+
     public HashMap<String,GameEntity> getLocationArtefacts(){ return locationArtefacts; }
+
     public HashMap<String, GameEntity> getLocationFurniture(){ return locationFurniture; }
+
     public HashMap<String, GameEntity> getLocationCharacters(){ return locationCharacters; }
+
     public void addPathDestination(String toLocation){ pathsTo.add(toLocation); }
+
     public void removePath(String toLocation){ pathsTo.remove(toLocation); }
+
     public ArrayList<String> getPathsTo(){ return pathsTo; }
+
     public boolean checkEntityPresent(String entityName){
         return (locationArtefacts.containsKey(entityName.toLowerCase())) ||
                 (locationFurniture.containsKey(entityName.toLowerCase())) ||
                 (locationCharacters.containsKey(entityName.toLowerCase()));
     }
+
     public GameEntity determineEntityFromName(String entityName){
         if (locationArtefacts.containsKey(entityName)){
             return locationArtefacts.get(entityName);
@@ -57,5 +70,6 @@ public class Location extends GameEntity {
             return locationFurniture.get(entityName);
         }
     }
+
     public boolean checkIfPathTo(String destinationName){ return pathsTo.contains(destinationName); }
 }
